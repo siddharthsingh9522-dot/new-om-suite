@@ -130,7 +130,8 @@
         <div class="ai-note" id="ainote-{{ code }}"></div>
         <div class="actions">
           <button class="btn small check" data-action="check" data-code="{{ code }}">AI Check</button>
-          <button class="btn small send" data-action="send" data-code="{{ code }}" disabled>Mail Bhejein</button>
+          <button class="btn small send" data-action="send" data-code="{{ code }}" disabled>Mail Bhejein (SMTP)</button>
+          <button class="btn small send" style="border-color:#8250df;color:#8250df;" data-action="send-tb" data-code="{{ code }}" disabled title="Aapke company Thunderbird account se bhejegi">Bhejein via Thunderbird</button>
         </div>
       </div>
     </div>
@@ -168,18 +169,25 @@ async function aiCheck(code){
   note.innerHTML = `<b>AI Verdict: ${status}</b><br>${data.reason||''}`;
   const sendBtn = document.querySelector(`[data-action="send"][data-code="${code}"]`);
   if (sendBtn) sendBtn.disabled = false;
+  const sendBtnTb = document.querySelector(`[data-action="send-tb"][data-code="${code}"]`);
+  if (sendBtnTb) sendBtnTb.disabled = false;
 }
 
-async function sendOne(code){
+async function sendOne(code, via){
   const email = document.getElementById('email-'+code).value.trim();
   if(!email){ alert('Email address dalein pehle'); return; }
+  const body = {email, cc: document.getElementById('cc-'+code)?.value.trim()||'', bcc: document.getElementById('bcc-'+code)?.value.trim()||''};
+  if (via) body.via = via;
   const resp = await fetch('/api/bill/send/'+code, {
-    method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({email, cc: document.getElementById('cc-'+code)?.value.trim()||'', bcc: document.getElementById('bcc-'+code)?.value.trim()||''})
+    method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)
   });
   const data = await resp.json();
   if(data.status === 'already_sent'){
     document.getElementById('badge-'+code).innerHTML = badgeHtml('sent');
     alert('Ye mail pehle hi bheji ja chuki hai — dobara nahi bheji jayegi.');
+  } else if(data.status === 'queued_thunderbird'){
+    document.getElementById('badge-'+code).innerHTML = badgeHtml('pending');
+    alert((data.detail||'') + '\nThunderbird open hona chahiye aur extension ka Auto-send ON hona chahiye.');
   } else {
     document.getElementById('badge-'+code).innerHTML = data.status === 'sent' ? badgeHtml('sent') : badgeHtml('failed');
     if (data.status !== 'sent') alert(data.detail || 'Mail send failed.');
@@ -188,6 +196,7 @@ async function sendOne(code){
 
 document.querySelectorAll('[data-action="check"]').forEach(btn => btn.onclick = (e) => { e.stopPropagation(); aiCheck(btn.dataset.code); });
 document.querySelectorAll('[data-action="send"]').forEach(btn => btn.onclick = (e) => { e.stopPropagation(); sendOne(btn.dataset.code); });
+document.querySelectorAll('[data-action="send-tb"]').forEach(btn => btn.onclick = (e) => { e.stopPropagation(); sendOne(btn.dataset.code, 'thunderbird'); });
 
 document.getElementById('checkAllBtn').onclick = async () => {
   const codes = [...document.querySelectorAll('.card')].map(c => c.id.replace('card-',''));
