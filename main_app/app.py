@@ -368,15 +368,15 @@ Sirf JSON return karo, kuch aur text nahi:
 def tbb_build_subject(branch):
     """Naya format: 'PROVIDE THE TBB CODE & MODIFY THE SAME............. GR:-<pehla>/<aakhri> M/S- <PARTY NAME>'"""
     grs = branch.get("grs", [])
-    cns = [str(g.get("cn", "")).strip() for g in grs if str(g.get("cn", "")).strip()]
+    cns = [str(gr.get("cn", "")).strip() for gr in grs if str(gr.get("cn", "")).strip()]
     if len(cns) >= 2:
         gr_part = f"{cns[0]}/{cns[-1]}"
     else:
         gr_part = cns[0] if cns else ""
 
     party_names = []
-    for g in grs:
-        pn = str(g.get("party_name", "")).strip()
+    for gr in grs:
+        pn = str(gr.get("party_name", "")).strip()
         if pn and pn.lower() != "nan" and pn not in party_names:
             party_names.append(pn)
     party_part = " & ".join(party_names)
@@ -388,10 +388,10 @@ def tbb_build_body(branch):
     """Plain-text fallback (jo HTML na dekh paye unke liye) — tab-separated table."""
     body = TBB_EMAIL_TEMPLATE_INTRO
     body += "B.Code \tBRANCH \tCN_NO \tPARTY CODE \tPARTY NAME\n"
-    for g in branch["grs"]:
+    for gr in branch["grs"]:
         body += (
             f"{branch['branch_code']} \t{branch.get('branch_name_sheet','')} \t"
-            f"{g['cn']} \t{g['party_code']} \t*{g['party_name']}*\n"
+            f"{gr['cn']} \t{gr['party_code']} \t*{gr['party_name']}*\n"
         )
     body += "\nRegards,\n" + (g.mail_cfg.get("smtp_from_name") or "")
     return body
@@ -415,7 +415,7 @@ def tbb_build_body_html(branch):
     header_row = "".join(f'<th style="{th_style}">{_html_escape(h)}</th>' for h in headers)
 
     body_rows = []
-    for i, g in enumerate(branch["grs"]):
+    for i, gr in enumerate(branch["grs"]):
         bg = "#F2F2F2" if i % 2 == 0 else "#FFFFFF"
         row_td = f'style="{td_style}background:{bg};"'
         party_td = f'style="{td_style}background:{bg};color:#C00000;font-weight:bold;"'
@@ -423,9 +423,9 @@ def tbb_build_body_html(branch):
             f"<tr>"
             f'<td {row_td}>{_html_escape(branch["branch_code"])}</td>'
             f'<td {row_td}>{_html_escape(branch.get("branch_name_sheet",""))}</td>'
-            f'<td {row_td}>{_html_escape(g["cn"])}</td>'
-            f'<td {row_td}>{_html_escape(g["party_code"])}</td>'
-            f'<td {party_td}>{_html_escape(g["party_name"])}</td>'
+            f'<td {row_td}>{_html_escape(gr["cn"])}</td>'
+            f'<td {row_td}>{_html_escape(gr["party_code"])}</td>'
+            f'<td {party_td}>{_html_escape(gr["party_name"])}</td>'
             f"</tr>"
         )
 
@@ -448,10 +448,10 @@ def tbb_build_attachment_xlsx(branch):
     ws.title = "TBB Details"
     headers = ["Branch Code", "Branch Name", "Region", "CN No", "Party Code", "Party Name", "CN Date"]
     ws.append(headers)
-    for g in branch["grs"]:
+    for gr in branch["grs"]:
         ws.append([
             branch["branch_code"], branch.get("branch_name_sheet", ""), branch.get("region", ""),
-            g["cn"], g["party_code"], g["party_name"], g["cn_date"],
+            gr["cn"], gr["party_code"], gr["party_name"], gr["cn_date"],
         ])
     for col_idx, header in enumerate(headers, start=1):
         max_len = max([len(str(header))] + [len(str(ws.cell(row=r, column=col_idx).value or "")) for r in range(2, ws.max_row + 1)])
