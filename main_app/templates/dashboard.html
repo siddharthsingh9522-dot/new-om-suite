@@ -32,10 +32,15 @@ html{background:var(--bg)}
 body{
   margin:0; min-height:100vh; color:var(--text);
   font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
-  background:
-    radial-gradient(900px 500px at 8% -10%,rgba(79,156,255,.18),transparent 60%),
-    radial-gradient(800px 450px at 100% 0%,rgba(124,92,255,.15),transparent 58%),
-    linear-gradient(180deg,#07111f 0%,#091522 100%);
+  background: linear-gradient(-45deg, #0877EE, #005BD4, #0a2540, #0877EE);
+  background-size: 400% 400%;
+  animation: gradientBG 15s ease infinite;
+  position: relative;
+}
+@keyframes gradientBG {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
 }
 body:before{
   content:"";position:fixed;inset:0;pointer-events:none;opacity:.22;
