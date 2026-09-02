@@ -20,10 +20,98 @@
               padding:2px 8px;border-radius:20px;margin-left:8px;}
   .ai-status{font-family:monospace;font-size:11.5px;color:#666;margin-top:26px;}
 </style>
-</head>
+<style>
+:root{
+  --bg:#07111f; --panel:#0d1a2b; --panel2:#101f33; --line:#20334d;
+  --text:#edf5ff; --muted:#8ea4bf; --accent:#4f9cff; --accent2:#7c5cff;
+  --good:#32d583; --warn:#fdb022; --danger:#ff6b6b;
+  --shadow:0 18px 55px rgba(0,0,0,.35); --radius:18px;
+}
+*{box-sizing:border-box}
+html{background:var(--bg)}
+body{
+  margin:0; min-height:100vh; color:var(--text);
+  font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
+  background:
+    radial-gradient(900px 500px at 8% -10%,rgba(79,156,255,.18),transparent 60%),
+    radial-gradient(800px 450px at 100% 0%,rgba(124,92,255,.15),transparent 58%),
+    linear-gradient(180deg,#07111f 0%,#091522 100%);
+}
+body:before{
+  content:"";position:fixed;inset:0;pointer-events:none;opacity:.22;
+  background-image:linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px);
+  background-size:32px 32px;
+}
+.navbar{
+  position:sticky;top:0;z-index:10;display:flex;justify-content:space-between;gap:18px;
+  align-items:center;padding:16px 28px;border-bottom:1px solid rgba(255,255,255,.08);
+  background:rgba(7,17,31,.78);backdrop-filter:blur(18px);
+}
+.navbar>div:first-child{font-weight:800;letter-spacing:.2px;font-size:15px}
+.navbar>div:last-child{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.navbar a,.navbar button.link{
+  color:#bcd0e8;text-decoration:none;background:transparent;border:0;padding:8px 10px;
+  border-radius:10px;font:600 12px inherit;cursor:pointer
+}
+.navbar a:hover,.navbar button.link:hover{color:#fff;background:rgba(255,255,255,.06)}
+.wrap{max-width:1180px!important;margin:0 auto;padding:46px 24px 72px!important}
+h1{font-size:34px!important;line-height:1.1;margin:0 0 9px!important;letter-spacing:-.8px}
+p.sub{color:var(--muted)!important;font-size:14px!important;margin:0 0 30px!important}
+.cards{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:18px!important}
+.card{
+  position:relative;background:linear-gradient(180deg,rgba(16,31,51,.92),rgba(11,25,41,.92))!important;
+  border:1px solid var(--line)!important;border-radius:var(--radius)!important;
+  padding:24px!important;color:var(--text)!important;box-shadow:0 7px 28px rgba(0,0,0,.18);
+  overflow:hidden;transition:transform .2s,border-color .2s,box-shadow .2s
+}
+.card:before{content:"";position:absolute;inset:-1px;background:linear-gradient(120deg,rgba(79,156,255,.14),transparent 38%,rgba(124,92,255,.08));pointer-events:none}
+.card:hover{transform:translateY(-4px);border-color:rgba(79,156,255,.55)!important;box-shadow:var(--shadow)}
+.card .emoji{font-size:30px;filter:drop-shadow(0 5px 12px rgba(79,156,255,.2))}
+.card h2{position:relative;font-size:16px!important;margin:13px 0 7px!important}
+.card p{position:relative;font-size:13px!important;color:var(--muted)!important;line-height:1.55}
+.badge-soon,.badge{
+  font-family:ui-monospace,SFMono-Regular,Menlo,monospace!important;
+  border:1px solid rgba(255,255,255,.1)!important;background:rgba(253,176,34,.12)!important;
+  color:#ffc861!important;padding:4px 9px!important;border-radius:999px!important
+}
+.ai-status{
+  color:var(--muted)!important;font-family:ui-monospace,SFMono-Regular,monospace!important;
+  font-size:11.5px!important;margin-top:24px!important;padding:12px 14px;
+  border:1px solid var(--line);border-radius:12px;background:rgba(13,26,43,.7)
+}
+.auth-wrap{
+  width:min(460px,calc(100% - 32px));margin:8vh auto;padding:34px;
+  background:linear-gradient(180deg,rgba(16,31,51,.96),rgba(10,22,37,.96));
+  border:1px solid var(--line);border-radius:24px;box-shadow:var(--shadow)
+}
+.auth-wrap h1{font-size:30px!important}.auth-wrap .sub{color:var(--muted)!important}
+label{display:block!important;color:#a9bdd5!important;font-size:11px!important;text-transform:uppercase;
+  letter-spacing:.08em;margin:15px 0 7px!important}
+input,select{
+  width:100%;padding:12px 13px!important;color:var(--text)!important;background:#091727!important;
+  border:1px solid #29405e!important;border-radius:11px!important;font-size:14px!important;outline:none;
+}
+input:focus,select:focus{border-color:var(--accent)!important;box-shadow:0 0 0 3px rgba(79,156,255,.13)}
+button:not(.link),.btn{
+  background:linear-gradient(135deg,var(--accent),#6b70ff)!important;color:white!important;
+  border:0!important;border-radius:11px!important;padding:11px 16px!important;
+  font-weight:750!important;box-shadow:0 8px 20px rgba(79,156,255,.2);cursor:pointer
+}
+.auth-wrap form button{width:100%;margin-top:20px}
+.auth-links{margin-top:20px;text-align:center;color:var(--muted);font-size:13px}
+a{color:#78b5ff}
+.auth-error,.banner.err{background:rgba(255,107,107,.1)!important;color:#ff9b9b!important;border:1px solid rgba(255,107,107,.25)}
+.banner.ok{background:rgba(50,213,131,.1)!important;color:#6ee7aa!important;border:1px solid rgba(50,213,131,.2)}
+@media(max-width:900px){.cards{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
+@media(max-width:640px){
+ .navbar{padding:13px 16px;align-items:flex-start}.navbar>div:last-child{justify-content:flex-end}
+ .wrap{padding:32px 16px 50px!important}h1{font-size:28px!important}
+ .cards{grid-template-columns:1fr!important}.auth-wrap{padding:26px;margin-top:5vh}
+}
+</style></head>
 <body>
 <div class="navbar">
-  <div>Mail Ops Dashboard</div>
+  <div>⚡ OM SUITE <span style="opacity:.45;font-weight:500">/ Mail Operations</span></div>
   <div>
     {% if me and me.role == 'admin' %}<a href="/admin/users">Users</a>{% endif %}
     <a href="/settings">My Settings</a>
