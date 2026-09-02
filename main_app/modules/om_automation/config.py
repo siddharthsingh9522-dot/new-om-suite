@@ -24,7 +24,7 @@ os.makedirs(LOG_DIR, exist_ok=True)
 # -----------------------------
 CN_API = "https://load.omone.in/utility-service/api/cn-status/{}"
 CUSTOMER_API = "https://scmomsanchar.omlogistics.co.in/oracle/query/customer.php?u=55555%22"
-GST_API = "https://services.gst.gov.in/services/api/search/taxpayerDetails"
+GST_API = "https://services.gst.gov.in/services/searchtp"
 # -----------------------------
 # Network
 # -----------------------------
