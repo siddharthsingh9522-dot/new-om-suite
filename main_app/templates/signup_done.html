@@ -1,15 +1,166 @@
 <!DOCTYPE html>
 <html lang="hi">
 <head>
-<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Signup — TBB Mail</title>
-<link rel="stylesheet" href="/static/auth.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Signup Success — TBB Mail</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(-45deg, #0877EE, #005BD4, #0a2540, #0877EE);
+            background-size: 400% 400%;
+            animation: gradientBG 15s ease infinite;
+            overflow: hidden;
+            padding: 20px;
+        }
+
+        @keyframes gradientBG {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        /* Floating Particles */
+        .particles {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        .particles li {
+            position: absolute;
+            display: block;
+            list-style: none;
+            width: 20px;
+            height: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            animation: floatUp 25s linear infinite;
+            bottom: -150px;
+            border-radius: 4px;
+        }
+
+        .particles li:nth-child(1) { left: 25%; width: 80px; height: 80px; animation-delay: 0s; }
+        .particles li:nth-child(2) { left: 10%; width: 30px; height: 30px; animation-delay: 2s; animation-duration: 12s; border-radius: 50%; }
+        .particles li:nth-child(3) { left: 70%; width: 20px; height: 20px; animation-delay: 4s; }
+        .particles li:nth-child(4) { left: 40%; width: 60px; height: 60px; animation-delay: 0s; animation-duration: 18s; border-radius: 50%; }
+        .particles li:nth-child(5) { left: 65%; width: 40px; height: 40px; animation-delay: 0s; }
+        .particles li:nth-child(6) { left: 75%; width: 110px; height: 110px; animation-delay: 3s; }
+
+        @keyframes floatUp {
+            0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+            100% { transform: translateY(-1000px) rotate(720deg); opacity: 0; }
+        }
+
+        /* Centered Glass Card */
+        .auth-wrap {
+            position: relative;
+            z-index: 1;
+            width: 100%;
+            max-width: 440px;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            padding: 40px;
+            border-radius: 16px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            text-align: center;
+        }
+
+        .success-icon {
+            width: 56px;
+            height: 56px;
+            background: #EBF8FF;
+            color: #0877EE;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px auto;
+            box-shadow: 0 4px 12px rgba(8, 119, 238, 0.15);
+        }
+
+        .auth-wrap h1 {
+            font-size: 24px;
+            font-weight: 800;
+            color: #07101D;
+            margin-bottom: 12px;
+            letter-spacing: -0.5px;
+        }
+
+        .auth-wrap .sub {
+            font-size: 14px;
+            color: #4A5568;
+            line-height: 1.6;
+            margin-bottom: 28px;
+        }
+
+        .auth-links a {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 48px;
+            background: #0877EE;
+            color: #FFFFFF;
+            font-size: 14px;
+            font-weight: 600;
+            border-radius: 8px;
+            text-decoration: none;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 12px rgba(8, 119, 238, 0.2);
+        }
+
+        .auth-links a:hover {
+            background: #005BD4;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(8, 119, 238, 0.3);
+        }
+    </style>
 </head>
 <body>
+
+<!-- Live Animated Background Elements -->
+<ul class="particles">
+    <li></li>
+    <li></li>
+    <li></li>
+    <li></li>
+    <li></li>
+    <li></li>
+</ul>
+
 <div class="auth-wrap">
-  <h1>Great!</h1>
-  <p class="sub">{{ message }}</p>
-  <div class="auth-links"><a href="/login">👉 Go to Login Page</a></div>
+    <div class="success-icon">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12"></polyline>
+        </svg>
+    </div>
+    <h1>Great!</h1>
+    <p class="sub">{{ message }}</p>
+    <div class="auth-links">
+        <a href="/login">👉 Go to Login Page</a>
+    </div>
 </div>
+
 </body>
 </html>
