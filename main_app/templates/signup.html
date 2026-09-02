@@ -7,12 +7,12 @@
 </head>
 <body>
 <div class="auth-wrap">
-  <h1>Naya Account</h1>
+  <h1>New Account</h1>
   <p class="sub">Pehla signup automatically admin ban jata hai, baaki sab approval ka wait karte hain.</p>
   {% if error %}<div class="auth-error">{{ error }}</div>{% endif %}
   <form method="post">
     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-    <label>Poora Naam</label>
+    <label>Full Name</label>
     <input type="text" name="name" required>
     <label>Username</label>
     <input type="text" name="username" required placeholder="lowercase, jaise: ankit.singh">
@@ -22,9 +22,9 @@
     <input type="password" name="password" required minlength="8">
     <label>Password (dubara)</label>
     <input type="password" name="confirm_password" required minlength="8">
-    <button type="submit">Account Banayein</button>
+    <button type="submit">Create a Account</button>
   </form>
-  <div class="auth-links">Pehle se account hai? <a href="/login">Login karein</a></div>
+  <div class="auth-links">I already have an account? <a href="/login">Login</a></div>
 </div>
 </body>
 </html>
