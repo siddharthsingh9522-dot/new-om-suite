@@ -115,7 +115,8 @@
         <td class="row-actions">
           <button onclick="aiCheck('{{ code }}')">AI Check</button>
           <button onclick="aiFix('{{ code }}')" style="border-color:var(--warn);color:var(--warn);">AI Fix</button>
-          <button class="send" onclick="sendOne('{{ code }}')">Bhejein</button>
+          <button class="send" onclick="sendOne('{{ code }}')">Bhejein (SMTP)</button>
+          <button class="send" style="border-color:#8250df;color:#8250df;" onclick="sendOne('{{ code }}', 'thunderbird')" title="Aapke company Thunderbird account se bhejegi — SMTP ki zaroorat nahi">Bhejein via Thunderbird</button>
         </td>
       </tr>
       {% endfor %}
@@ -163,14 +164,16 @@ async function aiFix(code){
   }
 }
 
-async function sendOne(code){
+async function sendOne(code, via){
   const email = document.getElementById('email-'+code).value.trim();
   if(!email){ alert('Email address dalein pehle'); return; }
   const cell = document.getElementById('send-'+code);
   cell.innerHTML = '<span class="badge pending">Sending...</span>';
+  const body = {email, cc: document.getElementById('cc-'+code)?.value.trim()||'', bcc: document.getElementById('bcc-'+code)?.value.trim()||''};
+  if (via) body.via = via;
   const resp = await fetch('/api/tbb/send/'+code, {
     method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({email, cc: document.getElementById('cc-'+code)?.value.trim()||'', bcc: document.getElementById('bcc-'+code)?.value.trim()||''})
+    body: JSON.stringify(body)
   });
   const data = await resp.json();
   if(data.status === 'sent'){
@@ -179,6 +182,8 @@ async function sendOne(code){
     } else {
       cell.innerHTML = '<span class="badge sent">Sent</span>';
     }
+  } else if(data.status === 'queued_thunderbird'){
+    cell.innerHTML = '<span class="badge pending">Thunderbird Queue</span><div class="reason">' + (data.detail||'') + ' Thunderbird open hona chahiye aur extension ka Auto-send ON hona chahiye — /bridge page se status check karein.</div>';
   } else if(data.status === 'already_sent'){
     cell.innerHTML = '<span class="badge sent">Already Sent</span>';
   } else {
