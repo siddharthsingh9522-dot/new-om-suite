@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Previous Mail — Preview</title>
+<link rel="stylesheet" href="/static/auth.css">
+<style>
+  :root{--ink:#12181f;--ink-soft:#4c5766;--paper:#f6f4ee;--panel:#fff;--line:#e2ded2;
+        --accent:#8a3b2b;--ok:#2f6b4f;--ok-bg:#e7f2ea;--warn:#a9660b;--warn-bg:#fbf0dc;
+        --miss:#a52f2f;--miss-bg:#fbe7e5;--mono:'JetBrains Mono',Consolas,monospace;}
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:Inter,Segoe UI,sans-serif;}
+  .wrap{max-width:1150px;margin:0 auto;padding:26px 22px 80px;}
+  header{display:flex;justify-content:space-between;align-items:center;border-bottom:3px solid var(--ink);
+         padding-bottom:14px;margin-bottom:18px;flex-wrap:wrap;gap:10px;}
+  h1{font-size:22px;margin:0;}
+  .stats{font-family:var(--mono);font-size:12.5px;color:var(--ink-soft);}
+  .toolbar{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center;}
+  .btn{font-family:var(--mono);font-size:12.5px;border:1.5px solid var(--ink);background:var(--ink);color:#fff;
+       padding:10px 16px;border-radius:3px;cursor:pointer;text-transform:uppercase;text-decoration:none;display:inline-block;}
+  .btn.secondary{background:transparent;color:var(--ink);}
+  .btn:disabled{opacity:.4;cursor:not-allowed;}
+  .ai-off-note{font-size:12.5px;background:var(--warn-bg);color:var(--warn);padding:8px 12px;border-radius:5px;}
+  table{width:100%;border-collapse:collapse;background:var(--panel);border:1px solid var(--line);border-radius:6px;overflow:hidden;}
+  th{text-align:left;font-family:var(--mono);font-size:10.5px;text-transform:uppercase;color:var(--ink-soft);
+     border-bottom:1.5px solid var(--ink);padding:9px 10px;background:#fbfaf6;}
+  td{padding:8px 10px;border-bottom:1px solid var(--line);font-size:13px;vertical-align:middle;}
+  input.email-input{width:180px;padding:6px 8px;font-size:12px;border:1.5px solid var(--line);border-radius:4px;}
+  .badge{font-family:var(--mono);font-size:10px;text-transform:uppercase;padding:3px 8px;border-radius:20px;white-space:nowrap;}
+  .badge.pending{background:#eee;color:#777;}
+  .badge.ok{background:var(--ok-bg);color:var(--ok);}
+  .badge.review{background:var(--warn-bg);color:var(--warn);}
+  .badge.missing{background:var(--miss-bg);color:var(--miss);}
+  .badge.sent{background:var(--ok-bg);color:var(--ok);}
+  .badge.failed{background:var(--miss-bg);color:var(--miss);}
+  .row-actions{display:flex;gap:5px;flex-wrap:wrap;}
+  .row-actions button{font-size:10px;padding:5px 7px;border-radius:3px;border:1px solid var(--line);
+                       background:#fff;cursor:pointer;}
+  .row-actions button.send{border-color:var(--ok);color:var(--ok);}
+  .row-actions button.tb{border-color:var(--accent);color:var(--accent);}
+  .reason{font-size:10.5px;color:var(--ink-soft);max-width:180px;}
+</style>
+</head>
+<body>
+<div class="navbar">
+  <div>Previous Mail</div>
+  <div>
+    <a href="/">Dashboard</a>
+    <a href="/previous-mail">Nayi Sheet</a>
+    <a href="/bridge">Thunderbird Bridge</a>
+    <form method="post" action="/logout" style="display:inline;">
+      <button class="link" type="submit">Logout</button>
+    </form>
+  </div>
+</div>
+<div class="wrap">
+  <header>
+    <h1>Previous Mail — Preview</h1>
+    <div class="stats">{{ branches|length }} groups generated</div>
+  </header>
+
+  {% if not ai_enabled %}
+  <div class="ai-off-note">AI key set nahi hai — AI check available nahi hai. Manually verify karke bhejein.</div>
+  {% endif %}
+
+  <div class="ai-off-note" style="background:#e7f2ea;color:#2f6b4f;">
+    Generated: {{ counts.generated }} · Draft: {{ counts.draft }} · Queued: {{ counts.queued }} ·
+    Skipped: {{ counts.skipped }} · Sent: {{ counts.sent }} · Failed: {{ counts.failed }}
+  </div>
+
+  <div class="toolbar">
+    <button class="btn" id="checkAllBtn">AI Check — Sabhi</button>
+    <button class="btn secondary" id="selectAllBtn">Sab Select Karein</button>
+    <button class="btn secondary" id="deselectAllBtn">Sab Deselect Karein</button>
+    <button class="btn" id="confirmBtn" style="background:var(--accent);border-color:var(--accent);">Selection Confirm Karein</button>
+    <button class="btn" id="sendAllBtn" style="background:var(--ok);border-color:var(--ok);">Queued Mails Bhejein</button>
+    <button class="btn secondary" id="retryBtn">Sirf Failed Retry Karein</button>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th><input type="checkbox" id="masterCheck"></th>
+        <th>Group</th><th>Rows</th><th>Email (TO/CC/BCC)</th>
+        <th>AI</th><th>Queue</th><th>Send</th><th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for code, b in branches.items() %}
+      <tr id="row-{{ code }}">
+        <td><input type="checkbox" class="sel-check" data-code="{{ code }}" {{ 'checked' if b.op_selected and b.op_status in ['DRAFT','QUEUED'] else '' }} {{ 'disabled' if b.op_status in ['SENT','SENDING'] else '' }}></td>
+        <td><code>{{ code }}</code><div style="font-size:11px;color:var(--ink-soft);max-width:220px;">{{ b.subject }}</div></td>
+        <td>{{ b.rows|length }}</td>
+        <td>
+          <input class="email-input" id="email-{{ code }}" value="{{ b.email or '' }}" placeholder="TO email">
+          <div style="margin-top:4px"><input class="email-input" id="cc-{{ code }}" placeholder="CC"></div>
+          <div style="margin-top:4px"><input class="email-input" id="bcc-{{ code }}" placeholder="BCC"></div>
+        </td>
+        <td id="ai-{{ code }}"><span class="badge pending">Pending</span></td>
+        <td id="queue-{{ code }}"><span class="badge {{ 'ok' if b.op_status=='QUEUED' else ('sent' if b.op_status=='SENT' else ('failed' if b.op_status=='FAILED' else ('missing' if b.op_status=='SKIPPED' else 'pending'))) }}">{{ b.op_status }}</span></td>
+        <td id="send-{{ code }}"><span class="badge pending">Pending</span></td>
+        <td class="row-actions">
+          <button onclick="aiCheck('{{ code }}')">AI Check</button>
+          <button class="tb" onclick="findViaThunderbird('{{ code }}')">Find via TB</button>
+          <button class="send" onclick="sendOne('{{ code }}')">Bhejein</button>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<script>
+function badgeHtml(status){
+  const map = {pending:'Pending', ok:'OK', review:'Review', missing:'Missing', checking:'Checking...', sent:'Sent', failed:'Failed', already_sent:'Already Sent'};
+  return `<span class="badge ${status}">${map[status]||status}</span>`;
+}
+
+async function aiCheck(code){
+  const email = document.getElementById('email-'+code).value.trim();
+  document.getElementById('ai-'+code).innerHTML = badgeHtml('checking');
+  const resp = await fetch('/api/previous/ai_check/'+code, {
+    method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({email})
+  });
+  const data = await resp.json();
+  document.getElementById('ai-'+code).innerHTML = badgeHtml(data.status) + `<div class="reason">${data.reason||''}</div>`;
+}
+
+async function sendOne(code){
+  const email = document.getElementById('email-'+code).value.trim();
+  if(!email){ alert('Email dalein pehle'); return; }
+  const cc = document.getElementById('cc-'+code).value.trim();
+  const bcc = document.getElementById('bcc-'+code).value.trim();
+  const cell = document.getElementById('send-'+code);
+  cell.innerHTML = badgeHtml('checking');
+  const resp = await fetch('/api/previous/send/'+code, {
+    method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({email, cc, bcc})
+  });
+  const data = await resp.json();
+  cell.innerHTML = badgeHtml(data.status === 'sent' ? 'sent' : (data.status === 'already_sent' ? 'already_sent' : 'failed'));
+  if(data.status === 'error') alert(data.detail || 'Send fail hua');
+}
+
+async function findViaThunderbird(code){
+  const resp = await fetch('/api/previous/find_via_thunderbird/'+code, {method:'POST'});
+  const data = await resp.json();
+  if(!data.job_id){ alert('Job create nahi ho payi'); return; }
+  alert('Thunderbird se dhoondne ki request bhej di gayi (Job #'+data.job_id+'). Thunderbird chalu ho aur extension "poll" kare to kuch second mein result aa jayega. Neeche "Bridge Job Status Check" button se refresh karein.');
+  pollJobStatus(data.job_id, code);
+}
+
+async function pollJobStatus(jobId, code, attempt){
+  attempt = attempt || 0;
+  if(attempt > 15) { alert('Job abhi tak process nahi hui — Thunderbird extension chalu hai check kar lein.'); return; }
+  const resp = await fetch('/api/bridge/job/'+jobId+'/status');
+  const data = await resp.json();
+  if(data.status === 'done' && data.result && data.result.profile){
+    const p = data.result.profile;
+    if(p.to && p.to.length) document.getElementById('email-'+code).value = p.to.join(', ');
+    if(p.cc && p.cc.length) document.getElementById('cc-'+code).value = p.cc.join(', ');
+    alert(`Thunderbird ne match dhoond liya (confidence: ${p.confidence}%). TO/CC field auto-fill ho gaye — check karke bhejein.`);
+    return;
+  }
+  if(data.status === 'error'){ alert('Thunderbird se error: ' + data.error); return; }
+  setTimeout(() => pollJobStatus(jobId, code, attempt+1), 3000);
+}
+
+document.getElementById('checkAllBtn').onclick = async () => {
+  for (const row of document.querySelectorAll('tr[id^="row-"]')) await aiCheck(row.id.replace('row-',''));
+};
+document.getElementById('selectAllBtn').onclick = () => document.querySelectorAll('.sel-check:not(:disabled)').forEach(c=>c.checked=true);
+document.getElementById('deselectAllBtn').onclick = () => document.querySelectorAll('.sel-check:not(:disabled)').forEach(c=>c.checked=false);
+document.getElementById('masterCheck').onchange = e => document.querySelectorAll('.sel-check:not(:disabled)').forEach(c=>c.checked=e.target.checked);
+
+document.getElementById('confirmBtn').onclick = async () => {
+  const selected = [...document.querySelectorAll('.sel-check:checked')].map(c=>c.dataset.code);
+  const total = document.querySelectorAll('.sel-check').length;
+  if(!confirm(`${total} mein se ${selected.length} select ki hain. Baaki ${total-selected.length} SKIP ho jayengi. Confirm?`)) return;
+  const resp = await fetch('/api/previous/confirm_selection', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({selected_codes: selected})});
+  const data = await resp.json();
+  alert(`Selected: ${data.selected}, Skipped: ${data.skipped}`);
+  location.reload();
+};
+
+document.getElementById('sendAllBtn').onclick = async () => {
+  if(!confirm('Sabhi QUEUED aur AI-OK groups ko abhi mail bhej di jayegi. Confirm karein?')) return;
+  const recipients = {};
+  document.querySelectorAll('tr[id^="row-"]').forEach(row => {
+    const code = row.id.replace('row-','');
+    recipients[code] = {cc: document.getElementById('cc-'+code)?.value.trim()||'', bcc: document.getElementById('bcc-'+code)?.value.trim()||''};
+  });
+  const resp = await fetch('/api/previous/send_all', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({recipients})});
+  const data = await resp.json();
+  data.results.forEach(r => {
+    const cell = document.getElementById('send-'+r.code);
+    if(cell) cell.innerHTML = badgeHtml(r.status === 'sent' ? 'sent' : (r.status.startsWith('skipped')?'missing':'failed'));
+  });
+  alert('Send All complete.');
+  location.reload();
+};
+
+document.getElementById('retryBtn').onclick = async () => {
+  const resp = await fetch('/api/previous/retry_failed', {method:'POST'});
+  const data = await resp.json();
+  alert(`${data.requeued.length} FAILED wapas QUEUED ho gayi.`);
+  location.reload();
+};
+</script>
+</body>
+</html>

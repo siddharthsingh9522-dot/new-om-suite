@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+{% block title %}Dashboard - GR Auto Modification System{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+
+{% block content %}
+{% if not save_api_ready %}
+<div class="alert alert-warning d-flex align-items-center gap-2 mb-4">
+  <i class="bi bi-exclamation-triangle-fill fs-5"></i>
+  <div>
+    <strong>Save API not configured.</strong>
+    The system is fully usable in Preview / Dry-Run mode. Real modifications will be blocked
+    until the save endpoint is set up in <a href="{{ url_for('settings_routes.index') }}">Settings</a>.
+  </div>
+</div>
+{% endif %}
+
+<h2 class="h6 mb-3">Modules</h2>
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-4 col-lg-2-4">
+    <a href="{{ url_for('single_cn.index') }}" class="module-card">
+      <div class="module-icon"><i class="bi bi-cash-coin"></i></div>
+      <div>
+        <h3>Billing Party</h3>
+        <p>Change billing party code &amp; remarks (Single + Bulk)</p>
+      </div>
+    </a>
+  </div>
+  {% for m in new_modules %}
+  <div class="col-6 col-md-4 col-lg-2-4">
+    <a href="{{ url_for('modules.single_page', module_key=m.key) }}" class="module-card">
+      <div class="module-icon"><i class="bi {{ m.icon }}"></i></div>
+      <div>
+        <h3>{{ m.short_name }}</h3>
+        <p>{{ m.display_name }} (Single + Bulk)</p>
+      </div>
+    </a>
+  </div>
+  {% endfor %}
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-6 col-lg-2-4 col-md-4">
+    <div class="kpi-card">
+      <div class="kpi-value">{{ stats.today_batches }}</div>
+      <div class="kpi-label">Today's Batches</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4">
+    <div class="kpi-card">
+      <div class="kpi-value">{{ stats.total_processed }}</div>
+      <div class="kpi-label">Total Processed</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4">
+    <div class="kpi-card">
+      <div class="kpi-value">{{ stats.success_rate }}%</div>
+      <div class="kpi-label">Success Rate</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4">
+    <div class="kpi-card">
+      <div class="kpi-value">{{ stats.failed_records }}</div>
+      <div class="kpi-label">Failed Records</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4">
+    <div class="kpi-card">
+      <div class="kpi-value">{{ stats.pending_records }}</div>
+      <div class="kpi-label">Pending Records</div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3">
+  <div class="col-12 col-lg-8">
+    <div class="card-panel">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2 class="h6 mb-0">Recent Batches</h2>
+        <a href="{{ url_for('history.index') }}" class="small">View all history &rarr;</a>
+      </div>
+      {% if recent_batches %}
+      <div class="table-responsive">
+        <table class="table table-sm align-middle">
+          <thead>
+            <tr>
+              <th>Batch ID</th><th>Type</th><th>Total</th><th>Success</th><th>Failed</th><th>Status</th><th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for b in recent_batches %}
+            <tr>
+              <td class="mono">{{ b.batch_id }}</td>
+              <td>{{ b.batch_type|capitalize }}</td>
+              <td>{{ b.total_gr }}</td>
+              <td>{{ b.success_count }}</td>
+              <td>{{ b.failed_count }}</td>
+              <td><span class="status-pill status-{{ b.status }}">{{ b.status }}</span></td>
+              <td><a href="{{ url_for('history.detail', batch_id=b.batch_id) }}" class="btn btn-sm btn-outline-secondary">Open</a></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <p class="text-muted mb-0">No batches yet. Start with <a href="{{ url_for('single_cn.index') }}">Single CN</a> or <a href="{{ url_for('bulk.index') }}">Bulk Excel</a>.</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="col-12 col-lg-4">
+    <div class="card-panel">
+      <h2 class="h6 mb-3">Quick Actions</h2>
+      <div class="d-grid gap-2">
+        <a class="btn btn-primary" href="{{ url_for('single_cn.index') }}"><i class="bi bi-file-earmark-text"></i> Modify a Single CN</a>
+        <a class="btn btn-outline-primary" href="{{ url_for('bulk.index') }}"><i class="bi bi-file-earmark-spreadsheet"></i> Upload Bulk Excel</a>
+        <a class="btn btn-outline-secondary" href="{{ url_for('bulk.download_template') }}"><i class="bi bi-download"></i> Download Excel Template</a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

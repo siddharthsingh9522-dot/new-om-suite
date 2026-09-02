@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TBB Party — Branch Mail Preview</title>
+<link rel="stylesheet" href="/static/auth.css">
+<style>
+  :root{--ink:#12181f;--ink-soft:#4c5766;--paper:#f6f4ee;--panel:#fff;--line:#e2ded2;
+        --accent:#8a3b2b;--ok:#2f6b4f;--ok-bg:#e7f2ea;--warn:#a9660b;--warn-bg:#fbf0dc;
+        --miss:#a52f2f;--miss-bg:#fbe7e5;--mono:'JetBrains Mono',Consolas,monospace;}
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:Inter,Segoe UI,sans-serif;}
+  .wrap{max-width:1100px;margin:0 auto;padding:26px 22px 80px;}
+  header{display:flex;justify-content:space-between;align-items:center;border-bottom:3px solid var(--ink);
+         padding-bottom:14px;margin-bottom:18px;flex-wrap:wrap;gap:10px;}
+  h1{font-size:22px;margin:0;}
+  .stats{font-family:var(--mono);font-size:12.5px;color:var(--ink-soft);}
+  .toolbar{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center;}
+  .btn{font-family:var(--mono);font-size:12.5px;border:1.5px solid var(--ink);background:var(--ink);color:#fff;
+       padding:10px 16px;border-radius:3px;cursor:pointer;text-transform:uppercase;}
+  .btn.secondary{background:transparent;color:var(--ink);}
+  .btn:disabled{opacity:.4;cursor:not-allowed;}
+  .ai-off-note{font-size:12.5px;background:var(--warn-bg);color:var(--warn);padding:8px 12px;border-radius:5px;}
+  table{width:100%;border-collapse:collapse;background:var(--panel);border:1px solid var(--line);border-radius:6px;overflow:hidden;}
+  th{text-align:left;font-family:var(--mono);font-size:10.5px;text-transform:uppercase;color:var(--ink-soft);
+     border-bottom:1.5px solid var(--ink);padding:9px 10px;background:#fbfaf6;}
+  td{padding:8px 10px;border-bottom:1px solid var(--line);font-size:13px;vertical-align:middle;}
+  input.email-input{width:190px;padding:6px 8px;font-size:12.5px;border:1.5px solid var(--line);border-radius:4px;}
+  .badge{font-family:var(--mono);font-size:10px;text-transform:uppercase;padding:3px 8px;border-radius:20px;white-space:nowrap;}
+  .badge.pending{background:#eee;color:#777;}
+  .badge.ok{background:var(--ok-bg);color:var(--ok);}
+  .badge.review{background:var(--warn-bg);color:var(--warn);}
+  .badge.missing{background:var(--miss-bg);color:var(--miss);}
+  .badge.unresolved{background:var(--miss-bg);color:var(--miss);}
+  .badge.ai_error{background:var(--miss-bg);color:var(--miss);}
+  .badge.sent{background:var(--ok-bg);color:var(--ok);}
+  .badge.failed{background:var(--miss-bg);color:var(--miss);}
+  .row-actions{display:flex;gap:6px;flex-wrap:wrap;}
+  .row-actions button{font-size:10.5px;padding:5px 8px;border-radius:3px;border:1px solid var(--line);
+                       background:#fff;cursor:pointer;}
+  .row-actions button.send{border-color:var(--ok);color:var(--ok);}
+  .reason{font-size:11px;color:var(--ink-soft);max-width:220px;}
+  footer{margin-top:24px;font-family:var(--mono);font-size:11px;color:var(--ink-soft);text-align:center;}
+</style>
+</head>
+<body>
+<div class="navbar">
+  <div>TBB Mail</div>
+  <div>
+    <a href="/">Dashboard</a>
+    <a href="/tbb">TBB Party Mail</a>
+    <a href="/bill">Bill Generated Mail</a>
+    {% if me and me.role == 'admin' %}<a href="/admin/users">Users</a>{% endif %}
+    <form method="post" action="/logout" style="display:inline;">
+      <button class="link" type="submit">Logout</button>
+    </form>
+  </div>
+</div>
+<div class="wrap">
+  <header>
+    <h1>Branch Mail Preview</h1>
+    <div class="stats">{{ branches|length }} branches · {{ total_gr }} GR · {{ missing_email }} email missing</div>
+  </header>
+
+  {% if not ai_enabled %}
+  <div class="ai-off-note">ANTHROPIC_API_KEY set nahi hai — AI check available nahi hai. Sab kuch manually verify karke hi bhejein.</div>
+  {% endif %}
+
+  <div class="ai-off-note" style="background:#e7f2ea;color:#2f6b4f;" id="queueStats">
+    Generated: {{ counts.generated }} · Draft (select karna baaki): {{ counts.draft }} ·
+    Queued: {{ counts.queued }} · Skipped: {{ counts.skipped }} ·
+    Sent: {{ counts.sent }} · Failed: {{ counts.failed }}
+  </div>
+
+  <div class="toolbar" style="background:#fff;border:1px solid var(--line);padding:10px 14px;border-radius:6px;">
+    <span style="font-family:var(--mono);font-size:11px;color:var(--ink-soft);text-transform:uppercase;">Sabhi Branch Mein CC/BCC Add Karein:</span>
+    <input type="text" id="globalCC" class="email-input" style="width:220px;" placeholder="CC email(s), comma se">
+    <input type="text" id="globalBCC" class="email-input" style="width:220px;" placeholder="BCC email(s), comma se">
+    <button class="btn secondary" id="applyGlobalBtn">Sabhi Mein Apply Karein</button>
+  </div>
+
+  <div class="toolbar">
+    <button class="btn" id="checkAllBtn">AI Check — Sabhi</button>
+    <button class="btn secondary" id="fixAllBtn" style="border-color:var(--warn);color:var(--warn);">AI Fix — Jo Review/Missing Hain</button>
+    <button class="btn secondary" id="selectAllBtn">Sab Select Karein</button>
+    <button class="btn secondary" id="deselectAllBtn">Sab Deselect Karein</button>
+    <button class="btn" id="confirmBtn" style="background:var(--accent);border-color:var(--accent);">Selection Confirm Karein</button>
+    <button class="btn" id="sendAllBtn" style="background:var(--ok);border-color:var(--ok);">Queued Mails Bhejein (jo AI OK hain)</button>
+    <button class="btn secondary" id="retryBtn">Sirf Failed Retry Karein</button>
+    <a href="/tbb/logs" class="btn secondary" style="text-decoration:none;display:inline-block;">Send Log Download</a>
+    <a href="/tbb" class="btn secondary" style="text-decoration:none;display:inline-block;">Nayi Sheet Upload Karein</a>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th><input type="checkbox" id="masterCheck"></th>
+        <th>Code</th><th>Branch</th><th>GR</th><th>Email</th><th>Contact</th>
+        <th>AI Status</th><th>Queue Status</th><th>Send Status</th><th>Actions</th>
+      </tr>
+    </thead>
+    <tbody id="tbody">
+      {% for code, b in branches.items() %}
+      <tr id="row-{{ code }}">
+        <td><input type="checkbox" class="sel-check" data-code="{{ code }}" {{ 'checked' if b.op_selected and b.op_status in ['DRAFT','QUEUED'] else '' }} {{ 'disabled' if b.op_status in ['SENT','SENDING'] else '' }}></td>
+        <td><code>{{ code }}</code></td>
+        <td>{{ b.branch_name_sheet }}</td>
+        <td>{{ b.grs|length }}</td>
+        <td><input class="email-input" id="email-{{ code }}" value="{{ b.email or '' }}" placeholder="email1@example.com, email2@example.com"><div style="margin-top:4px"><input class="email-input" id="cc-{{ code }}" placeholder="CC (optional)"></div><div style="margin-top:4px"><input class="email-input" id="bcc-{{ code }}" placeholder="BCC (optional)"></div></td>
+        <td style="font-size:11.5px;color:var(--ink-soft);">{{ b.contact_name or '—' }}</td>
+        <td id="ai-{{ code }}"><span class="badge pending">Pending</span></td>
+        <td id="queue-{{ code }}"><span class="badge {{ 'ok' if b.op_status=='QUEUED' else ('sent' if b.op_status=='SENT' else ('failed' if b.op_status=='FAILED' else ('missing' if b.op_status=='SKIPPED' else 'pending'))) }}">{{ b.op_status }}</span></td>
+        <td id="send-{{ code }}"><span class="badge pending">Pending</span></td>
+        <td class="row-actions">
+          <button onclick="aiCheck('{{ code }}')">AI Check</button>
+          <button onclick="aiFix('{{ code }}')" style="border-color:var(--warn);color:var(--warn);">AI Fix</button>
+          <button class="send" onclick="sendOne('{{ code }}')">Bhejein</button>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+
+  <footer>Send Log CSV mein har mail ka record save hota hai (data/send_log.csv).</footer>
+</div>
+
+<script>
+async function aiCheck(code){
+  const email = document.getElementById('email-'+code).value.trim();
+  const cell = document.getElementById('ai-'+code);
+  cell.innerHTML = '<span class="badge pending">Checking...</span>';
+  const resp = await fetch('/api/tbb/ai_check/'+code, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({email, cc: document.getElementById('cc-'+code)?.value.trim()||'', bcc: document.getElementById('bcc-'+code)?.value.trim()||''})
+  });
+  const data = await resp.json();
+  const status = data.status || 'review';
+  cell.innerHTML = `<span class="badge ${status}">${status}</span><div class="reason">${data.reason||''}</div>`;
+}
+
+async function aiFix(code){
+  const cell = document.getElementById('ai-'+code);
+  const emailInput = document.getElementById('email-'+code);
+  const prevHtml = cell.innerHTML;
+  cell.innerHTML = '<span class="badge pending">Fixing...</span>';
+  try {
+    const resp = await fetch('/api/tbb/ai_fix/'+code, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({email: emailInput.value.trim()})
+    });
+    const data = await resp.json();
+    if (data.email) emailInput.value = data.email;
+    const status = data.status || 'review';
+    cell.innerHTML = `<span class="badge ${status}">${status}</span><div class="reason">${data.reason||''}</div>`;
+    if (status === 'unresolved') {
+      alert('AI Fix kuch sudhaar nahi paaya: ' + (data.reason||'') + '\nEmail manually check karein.');
+    }
+  } catch (e) {
+    cell.innerHTML = prevHtml;
+    alert('AI Fix fail ho gaya: ' + e);
+  }
+}
+
+async function sendOne(code){
+  const email = document.getElementById('email-'+code).value.trim();
+  if(!email){ alert('Email address dalein pehle'); return; }
+  const cell = document.getElementById('send-'+code);
+  cell.innerHTML = '<span class="badge pending">Sending...</span>';
+  const resp = await fetch('/api/tbb/send/'+code, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({email, cc: document.getElementById('cc-'+code)?.value.trim()||'', bcc: document.getElementById('bcc-'+code)?.value.trim()||''})
+  });
+  const data = await resp.json();
+  if(data.status === 'sent'){
+    if (data.sent_copy && data.sent_copy.saved === false) {
+      cell.innerHTML = '<span class="badge sent">Sent</span><div class="reason" style="color:var(--warn);">Recipient ko mail chali gayi, lekin aapke Sent folder mein copy save nahi hui (' + (data.sent_copy.reason||'IMAP not configured') + '). Yehi wajah hai ki aapki mailbox mein ye mail dikhti nahi.</div>';
+    } else {
+      cell.innerHTML = '<span class="badge sent">Sent</span>';
+    }
+  } else if(data.status === 'already_sent'){
+    cell.innerHTML = '<span class="badge sent">Already Sent</span>';
+  } else {
+    cell.innerHTML = `<span class="badge failed">Failed</span><div class="reason">${data.detail||''}</div>`;
+  }
+}
+
+document.getElementById('applyGlobalBtn').onclick = () => {
+  const cc = document.getElementById('globalCC').value.trim();
+  const bcc = document.getElementById('globalBCC').value.trim();
+  if(!cc && !bcc){ alert('Pehle CC ya BCC email dalein'); return; }
+  let count = 0;
+  document.querySelectorAll('[id^="cc-"]').forEach(input => {
+    if(cc){
+      const existing = input.value.trim();
+      const parts = existing ? existing.split(',').map(x=>x.trim()).filter(Boolean) : [];
+      cc.split(',').map(x=>x.trim()).filter(Boolean).forEach(e => { if(!parts.includes(e)) parts.push(e); });
+      input.value = parts.join(', ');
+      count++;
+    }
+  });
+  document.querySelectorAll('[id^="bcc-"]').forEach(input => {
+    if(bcc){
+      const existing = input.value.trim();
+      const parts = existing ? existing.split(',').map(x=>x.trim()).filter(Boolean) : [];
+      bcc.split(',').map(x=>x.trim()).filter(Boolean).forEach(e => { if(!parts.includes(e)) parts.push(e); });
+      input.value = parts.join(', ');
+    }
+  });
+  alert(`${count} branches ke CC/BCC field update ho gaye. Ye sirf abhi ke liye hai — "Bhejein" ya "Queued Mails Bhejein" dabane par yahi values use hongi.`);
+};
+
+document.getElementById('checkAllBtn').onclick = async () => {
+  const codes = [...document.querySelectorAll('tr[id^="row-"]')].map(r => r.id.replace('row-',''));
+  for (const code of codes){
+    await aiCheck(code);
+  }
+};
+
+document.getElementById('fixAllBtn').onclick = async () => {
+  const rows = [...document.querySelectorAll('tr[id^="row-"]')];
+  let fixedCount = 0, unresolvedCount = 0;
+  for (const row of rows) {
+    const code = row.id.replace('row-','');
+    const badge = document.querySelector('#ai-'+code+' .badge');
+    const currentStatus = badge ? badge.textContent.trim().toLowerCase() : '';
+    if (!['review','missing','ai_error'].includes(currentStatus)) continue;
+    await aiFix(code);
+    const newBadge = document.querySelector('#ai-'+code+' .badge');
+    const newStatus = newBadge ? newBadge.textContent.trim().toLowerCase() : '';
+    if (newStatus === 'unresolved') unresolvedCount++; else fixedCount++;
+  }
+  alert(`AI Fix complete — ${fixedCount} row(s) update hui, ${unresolvedCount} manual review ke liye reh gayi.`);
+};
+
+document.getElementById('sendAllBtn').onclick = async () => {
+  if(!confirm('Sabhi QUEUED (confirm ki hui) aur AI-OK branches ko abhi mail bhej di jayegi. Confirm karein?')) return;
+  const recipients = {};
+  document.querySelectorAll('tr[id^="row-"]').forEach(row => {
+    const code = row.id.replace('row-','');
+    const ccInput = document.getElementById('cc-'+code);
+    const bccInput = document.getElementById('bcc-'+code);
+    recipients[code] = {cc: ccInput?.value.trim()||'', bcc: bccInput?.value.trim()||''};
+  });
+  const resp = await fetch('/api/tbb/send_all', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({recipients})
+  });
+  const data = await resp.json();
+  data.results.forEach(r => {
+    const cell = document.getElementById('send-'+r.code);
+    if(!cell) return;
+    if(r.status === 'sent') cell.innerHTML = '<span class="badge sent">Sent</span>';
+    else if(r.status === 'failed') cell.innerHTML = `<span class="badge failed">Failed</span>`;
+    else cell.innerHTML = `<span class="badge missing">${r.status}</span>`;
+  });
+  alert('Send All complete. Details table mein dikh rahi hain.');
+  location.reload();
+};
+
+document.getElementById('selectAllBtn').onclick = () => {
+  document.querySelectorAll('.sel-check:not(:disabled)').forEach(c => c.checked = true);
+};
+document.getElementById('deselectAllBtn').onclick = () => {
+  document.querySelectorAll('.sel-check:not(:disabled)').forEach(c => c.checked = false);
+};
+document.getElementById('masterCheck').onchange = (e) => {
+  document.querySelectorAll('.sel-check:not(:disabled)').forEach(c => c.checked = e.target.checked);
+};
+
+document.getElementById('confirmBtn').onclick = async () => {
+  const selected = [...document.querySelectorAll('.sel-check:checked')].map(c => c.dataset.code);
+  const total = document.querySelectorAll('.sel-check').length;
+  if(!confirm(`${total} generated mein se ${selected.length} select ki hain. Baaki ${total-selected.length} SKIP ho jayengi aur kabhi nahi bhejenge. Confirm karein?`)) return;
+  const resp = await fetch('/api/tbb/confirm_selection', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({selected_codes: selected})
+  });
+  const data = await resp.json();
+  alert(`Confirm ho gaya — Selected: ${data.selected}, Skipped: ${data.skipped}`);
+  location.reload();
+};
+
+document.getElementById('retryBtn').onclick = async () => {
+  const resp = await fetch('/api/tbb/retry_failed', {method:'POST'});
+  const data = await resp.json();
+  alert(`${data.requeued.length} FAILED mail(s) wapas QUEUED ho gayi. Ab "Queued Mails Bhejein" dabayein.`);
+  location.reload();
+};
+</script>
+</body>
+</html>

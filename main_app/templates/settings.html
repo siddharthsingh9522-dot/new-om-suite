@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Settings — OM Suite</title>
+<link rel="stylesheet" href="/static/auth.css">
+<style>
+  .wrap{max-width:820px;margin:0 auto;padding:26px 22px 60px;}
+  h1{font-size:20px;margin:0 0 4px;}
+  p.sub{color:#666;font-size:13px;margin:0 0 20px;}
+  .card{background:#fff;border:1px solid #e2ded2;border-radius:8px;padding:22px;margin-bottom:18px;}
+  .card h2{font-size:15px;margin:0 0 4px;}
+  .card p.hint{color:#666;font-size:12.5px;margin:0 0 16px;}
+  label{display:block;font-size:11.5px;text-transform:uppercase;letter-spacing:.05em;color:#666;margin:12px 0 5px;}
+  input, select{width:100%;padding:9px 11px;border:1.5px solid #e2ded2;border-radius:5px;font-size:13.5px;
+        box-sizing:border-box;font-family:inherit;}
+  .row2{display:grid;grid-template-columns:2fr 1fr;gap:12px;}
+  .btn{font-family:monospace;font-size:12px;border:1.5px solid #12181f;background:#12181f;color:#fff;
+       padding:9px 16px;border-radius:3px;cursor:pointer;text-transform:uppercase;margin-top:18px;}
+  .btn.secondary{background:transparent;color:#12181f;margin-left:10px;}
+  .badge{font-family:monospace;font-size:10.5px;padding:3px 9px;border-radius:20px;text-transform:uppercase;}
+  .badge.ok{background:#e7f2ea;color:#2f6b4f;}
+  .badge.off{background:#f1efe8;color:#8a8574;}
+  .banner{padding:11px 14px;border-radius:5px;font-size:12.5px;margin-bottom:18px;}
+  .banner.ok{background:#e7f2ea;color:#2f6b4f;}
+  .banner.err{background:#fbe7e5;color:#a52f2f;}
+  .keep-note{color:#999;font-size:11.5px;margin-top:4px;}
+</style>
+</head>
+<body>
+<div class="navbar">
+  <div>My Settings</div>
+  <div>
+    <a href="/">Dashboard</a>
+    <form method="post" action="/logout" style="display:inline;">
+      <button class="link" type="submit">Logout ({{ me.username }})</button>
+    </form>
+  </div>
+</div>
+<div class="wrap">
+  <h1>My Settings</h1>
+  <p class="sub">Ye purely aapka apna data hai — TBB/Bill mail aapke khud ke mail account se
+     jaayegi, aur AI check aapki apni API key se chalega. Admin ki koi shared mail-id ya
+     API key ab use nahi hoti.</p>
+
+  {% if saved == 'mail' %}<div class="banner ok">Mail Settings save ho gayi.</div>{% endif %}
+  {% if saved == 'ai' %}<div class="banner ok">AI Settings save ho gayi.</div>{% endif %}
+  {% if saved == 'test-mail' %}<div class="banner ok">Test mail bhej di gayi — apna inbox check karein.</div>{% endif %}
+  {% if error %}<div class="banner err">{{ error }}</div>{% endif %}
+
+  <div class="card">
+    <h2>Mail Settings (SMTP + IMAP)
+      {% if mail.configured %}<span class="badge ok">Configured</span>{% else %}<span class="badge off">Not configured</span>{% endif %}
+    </h2>
+    <p class="hint">Apna khud ka mail account daalein (jaise aapki company wali id, ya koi bhi SMTP-enabled
+       mailbox). Gmail/Outlook use kar rahe hain to "App Password" banani padegi — normal login password
+       kaam nahi karega.</p>
+    <form method="post" action="/settings/mail">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+      <div class="row2">
+        <div><label>SMTP Host</label><input name="smtp_host" value="{{ mail.smtp_host }}" placeholder="mail.example.com"></div>
+        <div><label>Port</label><input name="smtp_port" value="{{ mail.smtp_port }}" placeholder="587"></div>
+      </div>
+      <label>SMTP Username</label>
+      <input name="smtp_user" value="{{ mail.smtp_user }}" placeholder="your.name@company.com">
+      <label>SMTP Password</label>
+      <input type="password" name="smtp_pass" placeholder="{{ '•••••••• (saved — blank rehne dein agar change nahi karna)' if mail.configured else 'Password' }}">
+      <div class="keep-note">Blank chhod denge to purana password waisa hi rahega.</div>
+
+      <div class="row2">
+        <div><label>From Email</label><input name="smtp_from_email" value="{{ mail.smtp_from_email }}" placeholder="your.name@company.com"></div>
+        <div><label>From Name</label><input name="smtp_from_name" value="{{ mail.smtp_from_name }}" placeholder="Your Name"></div>
+      </div>
+
+      <label style="margin-top:20px;">IMAP Host <span style="text-transform:none;color:#aaa;">(optional — sirf "Sent" folder mein copy save karne ke liye)</span></label>
+      <div class="row2">
+        <div><input name="imap_host" value="{{ mail.imap_host }}" placeholder="mail.example.com"></div>
+        <div><input name="imap_port" value="{{ mail.imap_port }}" placeholder="993"></div>
+      </div>
+      <label>IMAP Username</label>
+      <input name="imap_user" value="{{ mail.imap_user }}" placeholder="Aksar SMTP username jaisa hi">
+      <label>IMAP Password</label>
+      <input type="password" name="imap_pass" placeholder="Blank = purana password rakhein">
+      <label>Sent Folder Name</label>
+      <input name="imap_sent_folder" value="{{ mail.imap_sent_folder }}" placeholder="Sent">
+
+      <button class="btn" type="submit">Mail Settings Save Karein</button>
+    </form>
+    <form method="post" action="/settings/test-mail" style="display:inline;">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <button class="btn secondary" type="submit">Test Mail Bhejein (khud ko)</button>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2>AI Settings
+      {% if ai.provider != 'none' %}<span class="badge ok">{{ ai.provider }}</span>{% else %}<span class="badge off">Off</span>{% endif %}
+    </h2>
+    <p class="hint">Optional — TBB/Bill "AI Check" aur Previous-Mail template-extraction feature ke liye.
+       Configure na karein to ye features "manual verification required" dikha denge, baaki poori app
+       normal kaam karti hai.</p>
+    <form method="post" action="/settings/ai">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <label>Provider</label>
+      <select name="ai_provider">
+        <option value="none" {{ 'selected' if ai.provider == 'none' }}>None (AI off)</option>
+        <option value="gemini" {{ 'selected' if ai.provider == 'gemini' }}>Gemini</option>
+        <option value="anthropic" {{ 'selected' if ai.provider == 'anthropic' }}>Anthropic</option>
+      </select>
+      <label>Gemini API Key</label>
+      <input type="password" name="gemini_api_key" placeholder="Blank = purani key rakhein">
+      <label>Anthropic API Key</label>
+      <input type="password" name="anthropic_api_key" placeholder="Blank = purani key rakhein">
+      <button class="btn" type="submit">AI Settings Save Karein</button>
+    </form>
+  </div>
+</div>
+</body>
+</html>

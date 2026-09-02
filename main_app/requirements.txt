@@ -1,0 +1,28 @@
+# ---- Web framework ----
+Flask==3.0.3
+Werkzeug==3.0.3
+gunicorn==22.0.0
+python-dotenv==1.0.1
+
+# ---- Per-user credential encryption (Settings page: SMTP/IMAP/AI keys) ----
+cryptography==43.0.0
+
+# ---- Postgres (production) — falls back to local SQLite if DATABASE_URL unset ----
+psycopg2-binary==2.9.9
+
+# ---- Data / Excel handling (branch, customer, OM automation, tbb mail) ----
+pandas==2.2.2
+openpyxl==3.1.2
+xlrd==2.0.1
+
+# ---- Scraping / HTTP (branch, customer, OM automation) ----
+requests==2.32.3
+beautifulsoup4==4.12.3
+lxml==5.3.0
+
+# ---- OM Automation: GST captcha flow (needs Chrome on the host) ----
+# Optional at runtime: the app boots fine without these, only the GST
+# captcha screen returns a "not available" message if they're missing.
+# See README "Deploying on Render" for how to enable this on Render.
+selenium==4.20.0
+webdriver-manager==4.0.0

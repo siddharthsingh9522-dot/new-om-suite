@@ -1,0 +1,27 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Auto Bill Intelligence Options</title><style>body{font:14px system-ui,sans-serif;max-width:760px;margin:40px auto;padding:0 20px;background:#f6f8fb;color:#172033}label{display:block;font-weight:700;margin:16px 0 6px}input{width:100%;box-sizing:border-box;padding:10px;border:1px solid #cbd5e1;border-radius:8px}button{margin-top:18px;padding:10px 16px;border:0;border-radius:8px;background:#1f4e78;color:white;cursor:pointer}.row{background:white;padding:24px;border-radius:14px;box-shadow:0 4px 20px #0001;margin-bottom:20px}.check{display:flex;gap:10px;align-items:center;margin-top:14px}.check input{width:auto}.status{margin-top:18px;padding:12px;border-radius:8px;background:#eef2ff;white-space:pre-wrap}.folder-box{max-height:280px;overflow-y:auto;border:1px solid #cbd5e1;border-radius:8px;padding:10px;margin-top:10px;background:#fafbfc}.folder-item{display:flex;gap:8px;align-items:center;padding:5px 4px;font-size:13px}.folder-item input{width:auto}.folder-item .acc{color:#64748b;font-size:11px;}.small-btn{margin-top:8px;padding:8px 12px;font-size:13px;}.hint{font-size:12.5px;color:#64748b;margin-top:6px;}</style></head>
+<body>
+<div class="row">
+  <h1>Auto Bill Intelligence Bridge</h1>
+  <p>Connect Thunderbird to <code>http://127.0.0.1:5000</code>. Keep auto-send OFF until you verify matching.</p>
+  <label>Web App URL</label><input id="apiBase" placeholder="http://127.0.0.1:5000">
+  <label>Bridge Token</label><input id="token" type="password">
+  <label>App Username</label><input id="username" placeholder="your_app_username">
+  <label>Search history (days)</label><input id="searchDays" type="number" min="30" max="3650">
+  <label>Maximum candidate mails per match</label><input id="matchLimit" type="number" min="50" max="1000">
+  <div class="check"><input id="enabled" type="checkbox"><span>Bridge enabled</span></div>
+  <div class="check"><input id="autoSend" type="checkbox"><span><b>Allow automatic Thunderbird send</b> (keep OFF for testing)</span></div>
+  <button id="save">Save Settings</button> <button id="test">Test Connection</button><button id="poll">Run Now</button>
+  <div id="status" class="status">Ready.</div>
+</div>
+
+<div class="row">
+  <h1 style="font-size:18px;">Search Folders</h1>
+  <p class="hint">Yahan se choose karein ki match dhoondte waqt kaunse folder(s) mein search ho.
+     Kuch bhi select nahi karenge to default behaviour chalega — har account ka auto-detected "Sent" folder.</p>
+  <button id="refreshFolders" class="small-btn">Folder List Refresh Karein</button>
+  <div id="folderBox" class="folder-box">Loading...</div>
+  <p class="hint" id="selectedCount"></p>
+</div>
+
+<script src="options.js"></script>
+</body></html>

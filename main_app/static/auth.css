@@ -1,0 +1,18 @@
+body{font-family:Inter,Segoe UI,sans-serif;background:#f6f4ee;margin:0;color:#12181f;}
+.auth-wrap{max-width:420px;margin:70px auto;background:#fff;border:1px solid #e2ded2;border-radius:8px;padding:32px;}
+.auth-wrap h1{font-size:21px;margin:0 0 6px;}
+.auth-wrap p.sub{color:#666;font-size:13px;margin:0 0 22px;}
+.auth-wrap label{display:block;font-size:11.5px;text-transform:uppercase;letter-spacing:.05em;color:#666;margin:14px 0 5px;}
+.auth-wrap input{width:100%;padding:9px 11px;border:1.5px solid #e2ded2;border-radius:5px;font-size:13.5px;}
+.auth-wrap button{margin-top:22px;width:100%;padding:11px;background:#12181f;color:#fff;border:none;border-radius:5px;font-size:13.5px;cursor:pointer;}
+.auth-wrap button:hover{background:#000;}
+.auth-error{background:#fbe7e5;color:#a52f2f;padding:10px 12px;border-radius:5px;font-size:12.5px;margin-bottom:14px;}
+.auth-links{margin-top:16px;font-size:12.5px;text-align:center;color:#666;}
+.auth-links a{color:#8a3b2b;}
+.navbar{display:flex;justify-content:space-between;align-items:center;background:#12181f;color:#fff;
+        padding:10px 22px;font-family:'JetBrains Mono',monospace;font-size:12.5px;}
+.navbar a{color:#fff;text-decoration:none;margin-left:16px;opacity:.85;}
+.navbar a:hover{opacity:1;text-decoration:underline;}
+.navbar form{display:inline;}
+.navbar button.link{background:none;border:none;color:#fff;font-family:inherit;font-size:inherit;cursor:pointer;opacity:.85;margin-left:16px;}
+.navbar button.link:hover{opacity:1;text-decoration:underline;}

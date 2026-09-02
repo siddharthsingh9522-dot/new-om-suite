@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}Settings - GR Auto Modification System{% endblock %}
+{% block page_title %}Settings{% endblock %}
+
+{% block content %}
+<div class="row g-3">
+  <div class="col-12 col-lg-7">
+    <div class="card-panel mb-3">
+      <h2 class="h6 mb-3">Runtime Configuration</h2>
+      <div class="row g-3">
+        <div class="col-md-6">
+          <label class="form-label">Request Timeout (seconds)</label>
+          <input type="number" step="0.5" class="form-control" id="request_timeout_seconds" value="{{ current.request_timeout_seconds }}">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Retry Count</label>
+          <input type="number" class="form-control" id="retry_count" value="{{ current.retry_count }}">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Retry Backoff Base (seconds)</label>
+          <input type="number" step="0.1" class="form-control" id="retry_backoff_seconds" value="{{ current.retry_backoff_seconds }}">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Bulk Concurrency</label>
+          <input type="number" class="form-control" id="bulk_concurrency" value="{{ current.bulk_concurrency }}">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Max Excel Rows</label>
+          <input type="number" class="form-control" id="max_excel_rows" value="{{ current.max_excel_rows }}">
+        </div>
+      </div>
+      <button class="btn btn-primary mt-3" id="saveSettingsBtn"><i class="bi bi-save"></i> Save Settings</button>
+      <div class="form-text mt-2">
+        These values take effect for new requests. Changing the upstream API URL or credentials
+        requires editing environment variables (.env) and restarting the application.
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-lg-5">
+    <div class="card-panel mb-3">
+      <h2 class="h6 mb-3">API Configuration Status</h2>
+      <table class="table table-sm">
+        <tbody>
+          <tr><th>API Base URL</th><td class="mono">{{ api_base_url }}</td></tr>
+          <tr><th>Save API Configured</th><td>{% if save_api_ready %}<span class="badge text-bg-success">Yes</span>{% else %}<span class="badge text-bg-warning">No</span>{% endif %}</td></tr>
+          <tr><th>Save API Method</th><td>{{ save_api_method }}</td></tr>
+          <tr><th>Save API URL Set</th><td>{{ "Yes" if save_api_url_configured else "No" }}</td></tr>
+        </tbody>
+      </table>
+      <p class="small text-muted mb-0">
+        Credentials and tokens are never shown here. Configure them only through environment
+        variables (see <span class="mono">.env.example</span>).
+      </p>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.getElementById("saveSettingsBtn").addEventListener("click", async () => {
+  const body = {
+    request_timeout_seconds: document.getElementById("request_timeout_seconds").value,
+    retry_count: document.getElementById("retry_count").value,
+    retry_backoff_seconds: document.getElementById("retry_backoff_seconds").value,
+    bulk_concurrency: document.getElementById("bulk_concurrency").value,
+    max_excel_rows: document.getElementById("max_excel_rows").value,
+  };
+  const data = await apiRequest("/settings/update", { method: "POST", body });
+  if (!data.ok) { showToast(data.error, "danger"); return; }
+  showToast("Settings updated.", "success");
+});
+</script>
+{% endblock %}

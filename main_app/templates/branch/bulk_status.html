@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Bulk Fetch Progress - OM Logistics</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.0/css/bootstrap.min.css">
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.0/jquery.min.js"></script>
+<style>
+  body { background:#f4f6f8; }
+  .card { background:#fff; border-radius:6px; padding:25px; margin-top:30px;
+          box-shadow:0 1px 3px rgba(0,0,0,0.1); }
+</style>
+</head>
+<body>
+<nav class="navbar navbar-default" style="background:#00558E;">
+  <div class="container-fluid">
+    <span class="navbar-brand" style="color:#fff;">OM Logistics - Branch Detail Finder</span>
+  </div>
+</nav>
+
+<div class="container">
+  <div class="card">
+    <h4>Bulk Fetch Chal Raha Hai...</h4>
+    <p>Job ID: {{ job_id }}</p>
+
+    <div class="progress">
+      <div id="progressBar" class="progress-bar" role="progressbar" style="width:0%;">0%</div>
+    </div>
+
+    <p id="statsText">Loading status...</p>
+
+    <div id="doneBox" style="display:none;">
+      <a id="downloadLink" href="/branch/bulk/download/{{ job_id }}" class="btn btn-success">Download Result Excel</a>
+    </div>
+    <div id="failBox" style="display:none;" class="alert alert-danger"></div>
+
+    <a href="/branch/" class="btn btn-link">&laquo; Back to Home</a>
+  </div>
+</div>
+
+<script>
+function poll() {
+  $.get("/branch/bulk/status/{{ job_id }}", function(resp) {
+    if (!resp.ok) return;
+    const total = resp.total || 0;
+    const done = resp.done || 0;
+    const pct = total > 0 ? Math.round((done/total)*100) : 0;
+    $("#progressBar").css("width", pct + "%").text(pct + "%");
+    $("#statsText").text(
+      "Status: " + resp.status + " | Total: " + total +
+      " | Done: " + done + " | Success: " + resp.success + " | Errors: " + resp.errors
+    );
+
+    if (resp.status === "done") {
+      $("#doneBox").show();
+    } else if (resp.status === "failed") {
+      $("#failBox").text("Error: " + (resp.error_message || "Unknown error")).show();
+    } else {
+      setTimeout(poll, 2000);
+    }
+  });
+}
+poll();
+</script>
+</body>
+</html>

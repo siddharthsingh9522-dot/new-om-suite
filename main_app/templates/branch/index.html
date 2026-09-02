@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>OM Logistics - Branch Detail Finder</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.0/css/bootstrap.min.css">
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.0/jquery.min.js"></script>
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.0/js/bootstrap.min.js"></script>
+<style>
+  body { background:#f4f6f8; }
+  .navbar-brand { font-weight:bold; }
+  .card { background:#fff; border-radius:6px; padding:20px; margin-bottom:20px;
+          box-shadow:0 1px 3px rgba(0,0,0,0.1); }
+  #resultBox { display:none; margin-top:15px; }
+  th { background:#c0c0c0; }
+</style>
+</head>
+<body>
+
+<nav class="navbar navbar-default" style="background:#00558E;">
+  <div class="container-fluid">
+    <span class="navbar-brand" style="color:#fff;">OM Logistics - Branch Detail Finder</span>
+  </div>
+</nav>
+
+<div class="container" style="margin-top:20px;">
+
+  {% with messages = get_flashed_messages() %}
+    {% if messages %}
+      <div class="alert alert-warning">{{ messages[0] }}</div>
+    {% endif %}
+  {% endwith %}
+
+  <ul class="nav nav-tabs" role="tablist">
+    <li role="presentation" class="active"><a href="#single" aria-controls="single" role="tab" data-toggle="tab">Single Branch Lookup</a></li>
+    <li role="presentation"><a href="#bulk" aria-controls="bulk" role="tab" data-toggle="tab">Bulk Upload (Excel)</a></li>
+  </ul>
+
+  <div class="tab-content" style="margin-top:15px;">
+
+    <!-- SINGLE LOOKUP -->
+    <div role="tabpanel" class="tab-pane active" id="single">
+      <div class="card">
+        <h4>Ek Branch Code Se Detail Nikalo</h4>
+        <div class="form-inline">
+          <input type="number" id="branchCodeInput" class="form-control" placeholder="Branch Code (e.g. 1001)" style="width:220px;">
+          <button class="btn btn-primary" onclick="doLookup()">Search</button>
+        </div>
+
+        <div id="loadingMsg" style="display:none; margin-top:10px; color:#00558E;">Fetching data...</div>
+        <div id="errorMsg" style="display:none; margin-top:10px; color:red;"></div>
+
+        <div id="resultBox">
+          <table class="table table-bordered table-striped" style="margin-top:15px;">
+            <thead>
+              <tr>
+                <th>Branch Code</th><th>Branch Name</th><th>Address</th>
+                <th>Controlling Branch</th><th>GST No</th>
+              </tr>
+            </thead>
+            <tbody id="resultTableBody"></tbody>
+          </table>
+          <form id="downloadForm" method="post" action="/branch/lookup/download">
+            <input type="hidden" name="SEARCH_CODE" id="f_search">
+            <input type="hidden" name="BRANCH_CODE" id="f_code">
+            <input type="hidden" name="BRANCH_NAME" id="f_name">
+            <input type="hidden" name="ADDRESS" id="f_addr">
+            <input type="hidden" name="CONTROLLING_BRANCH" id="f_ctrl">
+            <input type="hidden" name="GST_NO" id="f_gst">
+            <button type="submit" class="btn btn-success">Download as Excel</button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- BULK UPLOAD -->
+    <div role="tabpanel" class="tab-pane" id="bulk">
+      <div class="card">
+        <h4>Excel Sheet Upload Karo (Bulk Lookup)</h4>
+        <p class="text-muted">Excel ke pehle column me branch codes honi chahiye (header ke saath).</p>
+        <form method="post" action="/branch/bulk/upload" enctype="multipart/form-data">
+          <input type="file" name="file" accept=".xlsx,.xls" required>
+          <br><br>
+          <button type="submit" class="btn btn-primary">Upload &amp; Start Fetching</button>
+        </form>
+        <p style="margin-top:10px; color:#888;">
+          Note: Bade files me time lagta hai (server ko rate-limit se bachane ke liye
+          har request ke beech thoda delay hota hai). Upload karne ke baad progress page dikhega.
+        </p>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+function doLookup() {
+  const code = $("#branchCodeInput").val().trim();
+  $("#errorMsg").hide();
+  $("#resultBox").hide();
+  if (!code) { return; }
+
+  $("#loadingMsg").show();
+  $.post("/branch/lookup", {branch_code: code}, function(resp) {
+    $("#loadingMsg").hide();
+    if (resp.ok) {
+      const d = resp.data;
+      $("#resultTableBody").html(
+        "<tr><td>" + d.BRANCH_CODE + "</td><td>" + d.BRANCH_NAME + "</td><td>" +
+        d.ADDRESS + "</td><td>" + d.CONTROLLING_BRANCH + "</td><td>" + d.GST_NO + "</td></tr>"
+      );
+      $("#f_search").val(d.SEARCH_CODE);
+      $("#f_code").val(d.BRANCH_CODE);
+      $("#f_name").val(d.BRANCH_NAME);
+      $("#f_addr").val(d.ADDRESS);
+      $("#f_ctrl").val(d.CONTROLLING_BRANCH);
+      $("#f_gst").val(d.GST_NO);
+      $("#resultBox").show();
+    } else {
+      $("#errorMsg").text(resp.error).show();
+    }
+  }).fail(function(){
+    $("#loadingMsg").hide();
+    $("#errorMsg").text("Server se connect nahi ho paya.").show();
+  });
+}
+</script>
+
+</body>
+</html>

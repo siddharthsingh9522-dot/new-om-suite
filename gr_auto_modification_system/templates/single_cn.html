@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+{% block title %}Single CN - GR Auto Modification System{% endblock %}
+{% block page_title %}Single CN Modification{% endblock %}
+
+{% block content %}
+<div class="row g-3">
+  <div class="col-12 col-lg-5">
+    <div class="card-panel">
+      <h2 class="h6 mb-3">Enter Details</h2>
+      <div class="mb-3">
+        <label class="form-label">GR / CN / Docket / LR Number</label>
+        <input type="text" class="form-control" id="grNumber" placeholder="e.g. 1603261001552">
+      </div>
+      <div class="mb-3">
+        <label class="form-label">New Remark</label>
+        <textarea class="form-control" id="newRemark" rows="4" placeholder="e.g. C0DE 838219 @halol_acc dt22/08/2026 &amp;"></textarea>
+        <div class="form-text">The Party Code will be auto-detected from this remark (e.g. "CODE 838219").</div>
+      </div>
+      <div class="mb-3 d-none" id="manualPartyWrap">
+        <label class="form-label">Party Code (manual entry)</label>
+        <input type="text" class="form-control" id="manualPartyCode" placeholder="Party code not detected - enter manually">
+      </div>
+      <button class="btn btn-primary w-100" id="previewBtn"><i class="bi bi-eye"></i> Preview</button>
+    </div>
+  </div>
+
+  <div class="col-12 col-lg-7">
+    <div class="card-panel" id="previewPanel" style="display:none;">
+      <div class="mod-card-top">
+        <div class="mod-card-title"><i class="bi bi-file-earmark-text"></i> Docket Modification Preview</div>
+        <span id="statusPill" class="status-pill">-</span>
+      </div>
+      <p class="text-muted small mb-3" id="statusMessage"></p>
+
+      <div class="field-grid mb-2">
+        <div class="field-box span-2">
+          <div class="field-label">GR / CN / Docket / LR Number</div>
+          <div class="field-value mono" id="pv_gr">-</div>
+        </div>
+      </div>
+
+      <div class="field-grid mb-2">
+        <div class="field-box">
+          <div class="field-label">Current Party Code</div>
+          <div class="field-value" id="pv_old_party">-</div>
+        </div>
+        <div class="field-box">
+          <div class="field-label">New Party Code <span class="badge-verified" id="pv_verified_badge"></span></div>
+          <div class="field-value" id="pv_new_party">-</div>
+        </div>
+        <div class="field-box">
+          <div class="field-label">Party Name</div>
+          <div class="field-value" id="pv_party_name">-</div>
+        </div>
+        <div class="field-box">
+          <div class="field-label">Billing Location</div>
+          <div class="field-value" id="pv_billing_loc">-</div>
+        </div>
+      </div>
+
+      <div class="field-grid mb-2">
+        <div class="field-box">
+          <div class="field-label">Existing Remark</div>
+          <div class="field-value diff-old" id="pv_existing_remark">-</div>
+        </div>
+        <div class="field-box">
+          <div class="field-label">New Remark</div>
+          <div class="field-value diff-new" id="pv_new_remark">-</div>
+        </div>
+      </div>
+
+      <div class="field-grid">
+        <div class="field-box span-2">
+          <div class="field-label">Final Remark (editable)</div>
+          <textarea class="field-editable" id="pv_final_remark" rows="2"></textarea>
+        </div>
+      </div>
+
+      <div class="d-flex flex-wrap gap-2 mt-3">
+        <button class="btn btn-outline-secondary btn-sm" id="cancelBtn"><i class="bi bi-x-circle"></i> Cancel</button>
+        <button class="btn btn-outline-secondary btn-sm" id="refreshBtn"><i class="bi bi-arrow-clockwise"></i> Refresh Latest Data</button>
+        <button class="btn btn-success btn-sm ms-auto" id="confirmBtn"><i class="bi bi-save"></i> Confirm &amp; Modify</button>
+      </div>
+      {% if not save_api_ready %}
+      <div class="alert alert-warning mt-3 mb-0 py-2 small">
+        Save API is not configured yet. Confirming will run Preview/Dry-Run only - no data will be modified.
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+let lastPreview = null;
+
+function setStatus(status, message) {
+  const pill = document.getElementById("statusPill");
+  pill.textContent = status;
+  pill.className = "status-pill status-" + status;
+  document.getElementById("statusMessage").textContent = message || "";
+}
+
+function renderPreview(p) {
+  lastPreview = p;
+  document.getElementById("previewPanel").style.display = "block";
+  setStatus(p.status, p.message);
+  document.getElementById("pv_gr").textContent = p.gr_number || "-";
+  document.getElementById("pv_old_party").textContent = p.existing_party_code || "-";
+  document.getElementById("pv_new_party").textContent = p.new_party_code || "-";
+  document.getElementById("pv_party_name").textContent = p.party_name || "-";
+  document.getElementById("pv_billing_loc").textContent = p.billing_location || "-";
+  document.getElementById("pv_existing_remark").textContent = p.existing_remark || "(none)";
+  document.getElementById("pv_new_remark").textContent = p.new_remark || "-";
+  document.getElementById("pv_final_remark").value = p.final_remark || "";
+
+  const verifiedBadge = document.getElementById("pv_verified_badge");
+  verifiedBadge.innerHTML = (p.new_party_code && p.party_name) ? '<i class="bi bi-check-circle-fill"></i> Verified' : "";
+
+  const manualWrap = document.getElementById("manualPartyWrap");
+  manualWrap.classList.toggle("d-none", p.status !== "INVALID_PARTY");
+}
+
+async function runPreview() {
+  const gr_number = document.getElementById("grNumber").value.trim();
+  const new_remark = document.getElementById("newRemark").value;
+  const manual_party_code = document.getElementById("manualPartyCode").value.trim() || null;
+
+  if (!gr_number) { showToast("Enter a GR/CN number first.", "danger"); return; }
+
+  const data = await apiRequest("/single-cn/preview", {
+    method: "POST",
+    body: { gr_number, new_remark, manual_party_code },
+  });
+
+  if (!data.ok) { showToast(data.error, "danger"); return; }
+  renderPreview(data.preview);
+}
+
+document.getElementById("previewBtn").addEventListener("click", runPreview);
+document.getElementById("refreshBtn").addEventListener("click", runPreview);
+document.getElementById("cancelBtn").addEventListener("click", () => {
+  document.getElementById("previewPanel").style.display = "none";
+});
+
+document.getElementById("confirmBtn").addEventListener("click", async () => {
+  if (!lastPreview) return;
+  const gr_number = document.getElementById("grNumber").value.trim();
+  const new_remark = document.getElementById("newRemark").value;
+  const manual_party_code = document.getElementById("manualPartyCode").value.trim() || null;
+  const final_remark = document.getElementById("pv_final_remark").value;
+
+  const data = await apiRequest("/single-cn/confirm", {
+    method: "POST",
+    body: { gr_number, new_remark, manual_party_code, final_remark, dry_run: {{ 'false' if save_api_ready else 'true' }} },
+  });
+
+  if (!data.ok) { showToast(data.error || "Modification blocked.", "danger"); return; }
+  showToast(data.message, data.modified ? "success" : "warning");
+});
+</script>
+{% endblock %}

@@ -1,0 +1,203 @@
+{% extends "base.html" %}
+{% block title %}{{ module.display_name }} - GR Auto Modification System{% endblock %}
+{% block page_title %}{{ module.display_name }} &middot; Bulk Excel{% endblock %}
+
+{% block content %}
+<div class="step-track">
+  <div class="step done" id="step-upload">1. Upload</div>
+  <div class="step" id="step-configure">2. Configure</div>
+  <div class="step" id="step-preview">3. Review &amp; Confirm</div>
+  <div class="step" id="step-execute">4. Execute</div>
+</div>
+
+<!-- STEP 1: UPLOAD -->
+<div class="card-panel mb-3" id="panelUpload">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h2 class="h6 mb-0"><i class="bi {{ module.icon }}"></i> Upload Excel</h2>
+    <a class="small" href="{{ url_for('bulk.download_template') }}"><i class="bi bi-download"></i> Sample template</a>
+  </div>
+  <input type="file" class="form-control mb-3" id="fileInput" accept=".xlsx,.xls">
+  <button class="btn btn-primary" id="uploadBtn"><i class="bi bi-upload"></i> Upload &amp; Analyze</button>
+
+  <div id="uploadResult" class="mt-4" style="display:none;">
+    <div class="row g-3 mb-3">
+      <div class="col-6 col-md-3"><div class="kpi-card"><div class="kpi-value" id="stat_total">0</div><div class="kpi-label">Total Rows</div></div></div>
+      <div class="col-6 col-md-3"><div class="kpi-card"><div class="kpi-value" id="stat_valid">0</div><div class="kpi-label">Valid GR</div></div></div>
+      <div class="col-6 col-md-3"><div class="kpi-card"><div class="kpi-value" id="stat_dup">0</div><div class="kpi-label">Duplicate GR</div></div></div>
+      <div class="col-6 col-md-3"><div class="kpi-card"><div class="kpi-value" id="stat_invalid">0</div><div class="kpi-label">Invalid / Empty</div></div></div>
+    </div>
+    <div class="row g-3">
+      <div class="col-md-6">
+        <label class="form-label">Sheet</label>
+        <select class="form-select" id="sheetSelect"></select>
+      </div>
+      <div class="col-md-6">
+        <label class="form-label">GR / CN / Docket / LR Column</label>
+        <select class="form-select" id="columnSelect"></select>
+        <div class="form-text" id="columnConfidence"></div>
+      </div>
+    </div>
+    <button class="btn btn-outline-primary mt-3" id="reanalyzeBtn"><i class="bi bi-arrow-repeat"></i> Re-analyze</button>
+    <button class="btn btn-success mt-3 ms-2" id="proceedToConfigureBtn"><i class="bi bi-arrow-right-circle"></i> Continue</button>
+  </div>
+</div>
+
+<!-- STEP 2: CONFIGURE -->
+<div class="card-panel mb-3" id="panelConfigure" style="display:none;">
+  <h2 class="h6 mb-3">Configure Change</h2>
+
+  <div class="mb-3">
+    <label class="form-label">New {{ module.value_label }} <span class="text-muted small">(optional - leave blank to only change the remark)</span></label>
+    {% if module.kind == 'dropdown' %}
+    <select class="form-select" id="commonNewValue">
+      <option value="">(no change)</option>
+      {% for opt in module.options %}
+      <option value="{{ opt.value }}">{{ opt.label }}</option>
+      {% endfor %}
+    </select>
+    {% else %}
+    <input type="text" class="form-control" id="commonNewValue" placeholder="New {{ module.value_label }} for all records">
+    {% endif %}
+  </div>
+
+  <div class="mb-3">
+    <label class="form-label">Common Remark</label>
+    <textarea class="form-control" id="commonRemark" rows="3" placeholder="Remark to prepend to every record"></textarea>
+  </div>
+
+  <div class="alert alert-info" id="confirmRemarkBox">
+    <p class="mb-2">Apply this configuration to all eligible GR/CN records?</p>
+    <p class="mb-1"><strong>New {{ module.value_label }}:</strong> <span id="confirmValueText">(no change)</span></p>
+    <p class="mono mb-2" id="confirmRemarkText"></p>
+    <button class="btn btn-success btn-sm" id="continueToPreviewBtn">Continue to Review &amp; Confirm</button>
+  </div>
+</div>
+
+<!-- STEP 3: REVIEW & CONFIRM CENTER -->
+<div class="mb-3" id="panelPreview" style="display:none;">
+
+  <div class="card-panel mb-3">
+    <h2 class="h6 mb-3">BULK {{ module.short_name.upper() }} MODIFICATION &mdash; REVIEW &amp; CONFIRM</h2>
+    <div class="row g-3">
+      <div class="col-6 col-md-2"><div class="kpi-card"><div class="kpi-value" id="sum_total">0</div><div class="kpi-label">Total CN</div></div></div>
+      <div class="col-6 col-md-2"><div class="kpi-card"><div class="kpi-value" id="sum_ready">0</div><div class="kpi-label">Ready</div></div></div>
+      <div class="col-6 col-md-2"><div class="kpi-card"><div class="kpi-value" id="sum_selected">0</div><div class="kpi-label">Selected</div></div></div>
+      <div class="col-6 col-md-2"><div class="kpi-card"><div class="kpi-value" id="sum_already">0</div><div class="kpi-label">Already Applied</div></div></div>
+      <div class="col-6 col-md-2"><div class="kpi-card"><div class="kpi-value" id="sum_errors">0</div><div class="kpi-label">Errors</div></div></div>
+      <div class="col-6 col-md-2"><div class="kpi-card"><div class="kpi-value" id="sum_skipped">0</div><div class="kpi-label">Skipped</div></div></div>
+    </div>
+    <div class="field-grid mt-3">
+      <div class="field-box"><div class="field-label">New {{ module.value_label }}</div><div class="field-value" id="cfg_value">-</div></div>
+      <div class="field-box"><div class="field-label">{{ module.value_label }} Name/Label</div><div class="field-value" id="cfg_value_label">-</div></div>
+      <div class="field-box span-2"><div class="field-label">Common Remark</div><div class="field-value" id="cfg_remark">-</div></div>
+    </div>
+    <div id="configErrorBox" class="alert alert-danger mt-3 mb-0" style="display:none;"></div>
+  </div>
+
+  <div class="card-panel mb-3">
+    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+      <h2 class="h6 mb-0">All Records</h2>
+      <span class="badge text-bg-primary" id="selectedCountBadge">0 CN SELECTED</span>
+    </div>
+
+    <div class="row g-2 mb-2">
+      <div class="col-6 col-md-4"><input class="form-control form-control-sm" id="searchBox" placeholder="Search CN, value, name, remark..."></div>
+      <div class="col-6 col-md-4">
+        <select class="form-select form-select-sm" id="filterStatus">
+          <option value="">ALL</option>
+          <option value="READY">READY</option>
+          <option value="VALUE_ONLY">VALUE ONLY</option>
+          <option value="REMARK_ONLY">REMARK ONLY</option>
+          <option value="VALUE_AND_REMARK">VALUE + REMARK</option>
+          <option value="MANUALLY_EDITED">MANUALLY EDITED</option>
+          <option value="ALREADY_APPLIED">ALREADY APPLIED</option>
+          <option value="ERROR">ERROR</option>
+          <option value="SKIPPED">SKIPPED</option>
+        </select>
+      </div>
+      <div class="col-12 col-md-4">
+        <div class="form-check form-switch pt-1">
+          <input class="form-check-input" type="checkbox" id="onlyChangesToggle">
+          <label class="form-check-label small" for="onlyChangesToggle">Show only records requiring changes</label>
+        </div>
+      </div>
+    </div>
+
+    <div class="d-flex flex-wrap gap-2 mb-3">
+      <button class="btn btn-sm btn-outline-secondary" data-bulk-select="select_ready">Select All READY</button>
+      <button class="btn btn-sm btn-outline-secondary" data-bulk-select="deselect_all">Deselect All</button>
+      <button class="btn btn-sm btn-outline-secondary" data-bulk-select="select_value_changes">Select Value Changes</button>
+      <button class="btn btn-sm btn-outline-secondary" data-bulk-select="select_remark_changes">Select Remark Changes</button>
+      <button class="btn btn-sm btn-outline-secondary" data-bulk-select="select_manually_edited">Select Manually Edited</button>
+      <button class="btn btn-sm btn-outline-secondary" data-bulk-select="select_errors">Select Errors</button>
+      <button class="btn btn-sm btn-outline-secondary" data-bulk-select="reset_selection">Reset Selection</button>
+      <button class="btn btn-sm btn-outline-primary ms-auto" id="downloadPreReportBtn"><i class="bi bi-download"></i> Download Pre-Modification Report</button>
+    </div>
+
+    <div id="itemsCardList" style="max-height:640px; overflow-y:auto;"></div>
+    <nav id="paginationNav" class="mt-2"></nav>
+
+    <div class="d-flex justify-content-end mt-3">
+      <button class="btn btn-primary" id="proceedToExecuteBtn"><i class="bi bi-arrow-right-circle"></i> Proceed to Confirmation</button>
+    </div>
+  </div>
+
+  <div class="card-panel mb-3" id="errorCenterPanel" style="display:none;">
+    <h2 class="h6 mb-3 text-danger"><i class="bi bi-exclamation-triangle"></i> ATTENTION REQUIRED</h2>
+    <div id="errorCenterList"></div>
+  </div>
+</div>
+
+<!-- STEP 4: EXECUTE -->
+<div class="card-panel" id="panelExecute" style="display:none;">
+  <h2 class="h6 mb-3">Confirm &amp; Execute</h2>
+  <div id="executeSummary" class="mb-3"></div>
+
+  <div class="form-check mb-3">
+    <input class="form-check-input" type="checkbox" id="reviewedCheckbox">
+    <label class="form-check-label" for="reviewedCheckbox">I have reviewed the {{ module.value_label }} and Final Remarks for the selected records.</label>
+  </div>
+
+  <div class="form-check form-switch mb-3">
+    <input class="form-check-input" type="checkbox" id="dryRunToggle" {{ '' if save_api_ready else 'checked disabled' }}>
+    <label class="form-check-label" for="dryRunToggle">Dry Run (Preview only - no data modified)</label>
+  </div>
+  {% if not save_api_ready %}
+  <div class="alert alert-warning py-2 small">Save API is not configured. Execution will run in Dry Run mode only.</div>
+  {% endif %}
+
+  <div class="mb-3" id="confirmationTextWrap" style="display:none;">
+    <label class="form-label">Type <span class="mono" id="confirmationExpected"></span> to confirm</label>
+    <input class="form-control" id="confirmationText" placeholder="MODIFY N">
+  </div>
+
+  <button class="btn btn-success" id="executeBtn" disabled><i class="bi bi-play-circle"></i> <span id="executeBtnLabel">Confirm &amp; Modify Selected</span></button>
+
+  <div id="liveDashboard" class="mt-4" style="display:none;">
+    <div class="row g-2 mb-3">
+      <div class="col-6 col-md-3"><div class="kpi-card"><div class="kpi-value" id="live_total">0</div><div class="kpi-label">Total</div></div></div>
+      <div class="col-6 col-md-3"><div class="kpi-card"><div class="kpi-value" id="live_success">0</div><div class="kpi-label">Verified Success</div></div></div>
+      <div class="col-6 col-md-3"><div class="kpi-card"><div class="kpi-value" id="live_failed">0</div><div class="kpi-label">Failed</div></div></div>
+      <div class="col-6 col-md-3"><div class="kpi-card"><div class="kpi-value" id="live_processing">0</div><div class="kpi-label">Processing</div></div></div>
+    </div>
+    <div class="progress progress-lg mb-3"><div class="progress-bar bg-success" id="liveProgressBar" style="width:0%">0%</div></div>
+    <div class="d-flex gap-2 mb-3 flex-wrap">
+      <button class="btn btn-outline-secondary btn-sm" id="pauseBtn"><i class="bi bi-pause-circle"></i> Pause</button>
+      <button class="btn btn-outline-secondary btn-sm" id="resumeBtn"><i class="bi bi-play-circle"></i> Resume</button>
+      <button class="btn btn-outline-danger btn-sm" id="stopBtn"><i class="bi bi-stop-circle"></i> Stop Safely</button>
+      <button class="btn btn-outline-secondary btn-sm ms-auto" id="retryFailedBtn"><i class="bi bi-arrow-repeat"></i> Retry Failed</button>
+      <button class="btn btn-outline-primary btn-sm" id="exportFinalBtn"><i class="bi bi-download"></i> Export Report</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+window.MODULE_KEY = "{{ module.key }}";
+window.MODULE_KIND = "{{ module.kind }}";
+window.VALUE_LABEL = "{{ module.value_label }}";
+window.SAVE_API_READY = {{ 'true' if save_api_ready else 'false' }};
+</script>
+<script src="{{ url_for('static', filename='js/module_bulk.js') }}"></script>
+{% endblock %}

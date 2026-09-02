@@ -1,0 +1,32 @@
+services:
+  - type: web
+    name: gr-auto-modification-system
+    runtime: python
+    plan: free
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "gunicorn -w 2 -b 0.0.0.0:$PORT \"app:create_app()\""
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true
+      - key: FLASK_DEBUG
+        value: "0"
+      - key: WTF_CSRF_ENABLED
+        value: "1"
+      - key: SESSION_LIFETIME_MINUTES
+        value: "480"
+      - key: SAVE_API_ENABLED
+        value: "false"
+      - key: SAVE_API_URL
+        value: "/manual-cn/modification/{cn_no}"
+      - key: SAVE_API_METHOD
+        value: "PUT"
+      - key: API_BASE_URL
+        value: "https://load.omone.in/utility-service/api"
+      - key: API_AUTH_MODE
+        value: "none"
+      # DATABASE_URL is intentionally left for you to fill in during
+      # deploy - paste your Neon connection string here (see README,
+      # "Deploying to the web (free)"). Render will prompt for it because
+      # of "sync: false" below.
+      - key: DATABASE_URL
+        sync: false

@@ -1,0 +1,2 @@
+async function refresh(){const s=await messenger.storage.local.get({apiBase:'http://127.0.0.1:5000',username:'',enabled:false,autoSend:false});document.getElementById('state').textContent=`Web app: ${s.apiBase}\nUser: ${s.username||'(not set)'}\nBridge: ${s.enabled?'ON':'OFF'}\nAuto-send: ${s.autoSend?'ON':'OFF'}`;}
+document.getElementById('poll').onclick=async()=>{await messenger.runtime.sendMessage({type:'pollNow'});await refresh();};document.getElementById('options').onclick=()=>messenger.runtime.openOptionsPage();refresh();

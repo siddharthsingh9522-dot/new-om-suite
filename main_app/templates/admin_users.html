@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>User Management — TBB Mail</title>
+<link rel="stylesheet" href="/static/auth.css">
+<style>
+  .wrap{max-width:900px;margin:0 auto;padding:24px;}
+  table{width:100%;border-collapse:collapse;background:#fff;border:1px solid #e2ded2;border-radius:6px;overflow:hidden;margin-top:16px;}
+  th{text-align:left;font-family:monospace;font-size:10.5px;text-transform:uppercase;color:#666;border-bottom:1.5px solid #12181f;padding:9px 10px;background:#fbfaf6;}
+  td{padding:8px 10px;border-bottom:1px solid #e2ded2;font-size:13px;}
+  .badge{font-family:monospace;font-size:10px;text-transform:uppercase;padding:3px 8px;border-radius:20px;}
+  .badge.active{background:#e7f2ea;color:#2f6b4f;}
+  .badge.pending{background:#fbf0dc;color:#a9660b;}
+  .badge.disabled{background:#fbe7e5;color:#a52f2f;}
+  .badge.admin{background:#12181f;color:#fff;}
+  .badge.user{background:#eee;color:#666;}
+  form.inline{display:inline;}
+  button.mini{font-size:10.5px;padding:4px 8px;border-radius:3px;border:1px solid #e2ded2;background:#fff;cursor:pointer;margin-right:4px;}
+</style>
+</head>
+<body>
+<div class="navbar">
+  <div>TBB Mail — Admin</div>
+  <div>
+    <a href="/">Dashboard</a>
+    <a href="/admin/users">Users</a>
+    <form method="post" action="/logout" style="display:inline;">
+      <button class="link" type="submit">Logout ({{ me.username }})</button>
+    </form>
+  </div>
+</div>
+<div class="wrap">
+  <h1 style="font-size:20px;">User Management</h1>
+  <table>
+    <thead><tr><th>Name</th><th>Username</th><th>Email</th><th>Role</th><th>Status</th><th>Actions</th></tr></thead>
+    <tbody>
+      {% for u in users %}
+      <tr>
+        <td>{{ u.name }}</td>
+        <td>{{ u.username }}</td>
+        <td>{{ u.email }}</td>
+        <td><span class="badge {{ u.role }}">{{ u.role }}</span></td>
+        <td><span class="badge {{ u.status }}">{{ u.status }}</span></td>
+        <td>
+          {% if u.status == 'pending' %}
+          <form class="inline" method="post" action="/admin/users/{{ u.id }}/approve">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <button class="mini" type="submit">Approve</button>
+          </form>
+          {% endif %}
+          {% if u.status == 'active' and u.id != me.id %}
+          <form class="inline" method="post" action="/admin/users/{{ u.id }}/disable">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <button class="mini" type="submit">Disable</button>
+          </form>
+          {% endif %}
+          {% if u.status == 'disabled' %}
+          <form class="inline" method="post" action="/admin/users/{{ u.id }}/enable">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <button class="mini" type="submit">Enable</button>
+          </form>
+          {% endif %}
+          {% if u.role == 'user' %}
+          <form class="inline" method="post" action="/admin/users/{{ u.id }}/make_admin">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <button class="mini" type="submit">Make Admin</button>
+          </form>
+          {% elif u.id != me.id %}
+          <form class="inline" method="post" action="/admin/users/{{ u.id }}/make_user">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <button class="mini" type="submit">Make User</button>
+          </form>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+</body>
+</html>

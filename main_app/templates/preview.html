@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TBB Party — Branch Mail Preview</title>
+<link rel="stylesheet" href="/static/auth.css">
+<style>
+  :root{--ink:#12181f;--ink-soft:#4c5766;--paper:#f6f4ee;--panel:#fff;--line:#e2ded2;
+        --accent:#8a3b2b;--ok:#2f6b4f;--ok-bg:#e7f2ea;--warn:#a9660b;--warn-bg:#fbf0dc;
+        --miss:#a52f2f;--miss-bg:#fbe7e5;--mono:'JetBrains Mono',Consolas,monospace;}
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:Inter,Segoe UI,sans-serif;}
+  .wrap{max-width:1100px;margin:0 auto;padding:26px 22px 80px;}
+  header{display:flex;justify-content:space-between;align-items:center;border-bottom:3px solid var(--ink);
+         padding-bottom:14px;margin-bottom:18px;flex-wrap:wrap;gap:10px;}
+  h1{font-size:22px;margin:0;}
+  .stats{font-family:var(--mono);font-size:12.5px;color:var(--ink-soft);}
+  .toolbar{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center;}
+  .btn{font-family:var(--mono);font-size:12.5px;border:1.5px solid var(--ink);background:var(--ink);color:#fff;
+       padding:10px 16px;border-radius:3px;cursor:pointer;text-transform:uppercase;}
+  .btn.secondary{background:transparent;color:var(--ink);}
+  .btn:disabled{opacity:.4;cursor:not-allowed;}
+  .ai-off-note{font-size:12.5px;background:var(--warn-bg);color:var(--warn);padding:8px 12px;border-radius:5px;}
+  table{width:100%;border-collapse:collapse;background:var(--panel);border:1px solid var(--line);border-radius:6px;overflow:hidden;}
+  th{text-align:left;font-family:var(--mono);font-size:10.5px;text-transform:uppercase;color:var(--ink-soft);
+     border-bottom:1.5px solid var(--ink);padding:9px 10px;background:#fbfaf6;}
+  td{padding:8px 10px;border-bottom:1px solid var(--line);font-size:13px;vertical-align:middle;}
+  input.email-input{width:190px;padding:6px 8px;font-size:12.5px;border:1.5px solid var(--line);border-radius:4px;}
+  .badge{font-family:var(--mono);font-size:10px;text-transform:uppercase;padding:3px 8px;border-radius:20px;white-space:nowrap;}
+  .badge.pending{background:#eee;color:#777;}
+  .badge.ok{background:var(--ok-bg);color:var(--ok);}
+  .badge.review{background:var(--warn-bg);color:var(--warn);}
+  .badge.missing{background:var(--miss-bg);color:var(--miss);}
+  .badge.sent{background:var(--ok-bg);color:var(--ok);}
+  .badge.failed{background:var(--miss-bg);color:var(--miss);}
+  .row-actions{display:flex;gap:6px;flex-wrap:wrap;}
+  .row-actions button{font-size:10.5px;padding:5px 8px;border-radius:3px;border:1px solid var(--line);
+                       background:#fff;cursor:pointer;}
+  .row-actions button.send{border-color:var(--ok);color:var(--ok);}
+  .reason{font-size:11px;color:var(--ink-soft);max-width:220px;}
+  footer{margin-top:24px;font-family:var(--mono);font-size:11px;color:var(--ink-soft);text-align:center;}
+</style>
+</head>
+<body>
+<div class="navbar">
+  <div>TBB Mail</div>
+  <div>
+    <a href="/">Dashboard</a>
+    {% if me and me.role == 'admin' %}<a href="/admin/users">Users</a>{% endif %}
+    <form method="post" action="/logout" style="display:inline;">
+      <button class="link" type="submit">Logout</button>
+    </form>
+  </div>
+</div>
+<div class="wrap">
+  <header>
+    <h1>Branch Mail Preview</h1>
+    <div class="stats">{{ branches|length }} branches · {{ total_gr }} GR · {{ missing_email }} email missing</div>
+  </header>
+
+  {% if not ai_enabled %}
+  <div class="ai-off-note">ANTHROPIC_API_KEY set nahi hai — AI check available nahi hai. Sab kuch manually verify karke hi bhejein.</div>
+  {% endif %}
+
+  <div class="toolbar">
+    <button class="btn" id="checkAllBtn">AI Check — Sabhi</button>
+    <button class="btn" id="sendAllBtn" style="background:var(--ok);border-color:var(--ok);">Sab Ko Mail Bhejein (jo AI OK hain)</button>
+    <a href="/logs" class="btn secondary" style="text-decoration:none;display:inline-block;">Send Log Download</a>
+    <a href="/" class="btn secondary" style="text-decoration:none;display:inline-block;">Nayi Sheet Upload Karein</a>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Code</th><th>Branch</th><th>GR</th><th>Email</th><th>Contact</th>
+        <th>AI Status</th><th>Send Status</th><th>Actions</th>
+      </tr>
+    </thead>
+    <tbody id="tbody">
+      {% for code, b in branches.items() %}
+      <tr id="row-{{ code }}">
+        <td><code>{{ code }}</code></td>
+        <td>{{ b.branch_name_sheet }}</td>
+        <td>{{ b.grs|length }}</td>
+        <td><input class="email-input" id="email-{{ code }}" value="{{ b.email or '' }}" placeholder="email dalein"></td>
+        <td style="font-size:11.5px;color:var(--ink-soft);">{{ b.contact_name or '—' }}</td>
+        <td id="ai-{{ code }}"><span class="badge pending">Pending</span></td>
+        <td id="send-{{ code }}"><span class="badge pending">Pending</span></td>
+        <td class="row-actions">
+          <button onclick="aiCheck('{{ code }}')">AI Check</button>
+          <button class="send" onclick="sendOne('{{ code }}')">Bhejein</button>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <footer>Send Log CSV mein har mail ka record save hota hai (data/send_log.csv).</footer>
+</div>
+
+<script>
+async function aiCheck(code){
+  const email = document.getElementById('email-'+code).value.trim();
+  const cell = document.getElementById('ai-'+code);
+  cell.innerHTML = '<span class="badge pending">Checking...</span>';
+  const resp = await fetch('/api/ai_check/'+code, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({email})
+  });
+  const data = await resp.json();
+  const status = data.status || 'review';
+  cell.innerHTML = `<span class="badge ${status}">${status}</span><div class="reason">${data.reason||''}</div>`;
+}
+
+async function sendOne(code){
+  const email = document.getElementById('email-'+code).value.trim();
+  if(!email){ alert('Email address dalein pehle'); return; }
+  const cell = document.getElementById('send-'+code);
+  cell.innerHTML = '<span class="badge pending">Sending...</span>';
+  const resp = await fetch('/api/send/'+code, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({email})
+  });
+  const data = await resp.json();
+  if(data.status === 'sent'){
+    cell.innerHTML = '<span class="badge sent">Sent</span>';
+  } else {
+    cell.innerHTML = `<span class="badge failed">Failed</span><div class="reason">${data.detail||''}</div>`;
+  }
+}
+
+document.getElementById('checkAllBtn').onclick = async () => {
+  const codes = [...document.querySelectorAll('tr[id^="row-"]')].map(r => r.id.replace('row-',''));
+  for (const code of codes){
+    await aiCheck(code);
+  }
+};
+
+document.getElementById('sendAllBtn').onclick = async () => {
+  if(!confirm('Sabhi AI-OK branches ko abhi mail bhej di jayegi. Confirm karein?')) return;
+  const resp = await fetch('/api/send_all', {method:'POST'});
+  const data = await resp.json();
+  data.results.forEach(r => {
+    const cell = document.getElementById('send-'+r.code);
+    if(!cell) return;
+    if(r.status === 'sent') cell.innerHTML = '<span class="badge sent">Sent</span>';
+    else if(r.status === 'failed') cell.innerHTML = `<span class="badge failed">Failed</span>`;
+    else cell.innerHTML = `<span class="badge missing">${r.status}</span>`;
+  });
+  alert('Send All complete. Details table mein dikh rahi hain.');
+};
+</script>
+</body>
+</html>

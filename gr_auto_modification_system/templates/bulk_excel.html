@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+{% block title %}Bulk Excel - GR Auto Modification System{% endblock %}
+{% block page_title %}Bulk Excel Modification{% endblock %}
+
+{% block content %}
+<div class="step-track">
+  <div class="step done" id="step-upload">1. Upload</div>
+  <div class="step" id="step-configure">2. Configure Remark</div>
+  <div class="step" id="step-preview">3. Preview &amp; Review</div>
+  <div class="step" id="step-execute">4. Execute</div>
+</div>
+
+<!-- STEP 1: UPLOAD -->
+<div class="card-panel mb-3" id="panelUpload">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h2 class="h6 mb-0">Upload Excel</h2>
+    <a class="small" href="{{ url_for('bulk.download_template') }}"><i class="bi bi-download"></i> Download sample template</a>
+  </div>
+  <div class="mb-3">
+    <input type="file" class="form-control" id="fileInput" accept=".xlsx,.xls">
+  </div>
+  <button class="btn btn-primary" id="uploadBtn"><i class="bi bi-upload"></i> Upload &amp; Analyze</button>
+
+  <div id="uploadResult" class="mt-4" style="display:none;">
+    <div class="row g-3 mb-3">
+      <div class="col-6 col-md-3"><div class="kpi-card"><div class="kpi-value" id="stat_total">0</div><div class="kpi-label">Total Rows</div></div></div>
+      <div class="col-6 col-md-3"><div class="kpi-card"><div class="kpi-value" id="stat_valid">0</div><div class="kpi-label">Valid GR</div></div></div>
+      <div class="col-6 col-md-3"><div class="kpi-card"><div class="kpi-value" id="stat_dup">0</div><div class="kpi-label">Duplicate GR</div></div></div>
+      <div class="col-6 col-md-3"><div class="kpi-card"><div class="kpi-value" id="stat_invalid">0</div><div class="kpi-label">Invalid / Empty</div></div></div>
+    </div>
+
+    <div class="row g-3">
+      <div class="col-md-6">
+        <label class="form-label">Sheet</label>
+        <select class="form-select" id="sheetSelect"></select>
+      </div>
+      <div class="col-md-6">
+        <label class="form-label">GR / CN / Docket / LR Column</label>
+        <select class="form-select" id="columnSelect"></select>
+        <div class="form-text" id="columnConfidence"></div>
+      </div>
+    </div>
+    <button class="btn btn-outline-primary mt-3" id="reanalyzeBtn"><i class="bi bi-arrow-repeat"></i> Re-analyze</button>
+    <button class="btn btn-success mt-3 ms-2" id="proceedToConfigureBtn"><i class="bi bi-arrow-right-circle"></i> Continue to Configure Remark</button>
+  </div>
+</div>
+
+<!-- STEP 2: CONFIGURE -->
+<div class="card-panel mb-3" id="panelConfigure" style="display:none;">
+  <h2 class="h6 mb-3">Enter Common Remark</h2>
+  <textarea class="form-control mb-2" id="commonRemark" rows="3" placeholder="e.g. C0DE 838219 @halol_acc dt22/08/2026 &amp;"></textarea>
+  <button class="btn btn-outline-primary" id="detectPartyBtn"><i class="bi bi-search"></i> Detect Party Code</button>
+
+  <div id="partyResult" class="mt-3" style="display:none;">
+    <table class="table table-sm">
+      <tbody>
+        <tr><th style="width:30%">Detected Party Code</th><td id="dp_code"></td></tr>
+        <tr><th>Party Name</th><td id="dp_name"></td></tr>
+        <tr><th>Party Type</th><td id="dp_type"></td></tr>
+        <tr><th>Billing Location</th><td id="dp_loc"></td></tr>
+        <tr><th>GST</th><td id="dp_gst"></td></tr>
+        <tr><th>Verified</th><td id="dp_verified"></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="alert alert-info mt-3" id="confirmRemarkBox" style="display:none;">
+    <p class="mb-2">You entered the following remark. Do you want to apply this configuration to all eligible GR/CN records?</p>
+    <p class="mono mb-2" id="confirmRemarkText"></p>
+    <div class="d-flex gap-2">
+      <button class="btn btn-outline-secondary btn-sm" id="changeRemarkBtn">Change Remark</button>
+      <button class="btn btn-success btn-sm" id="continueToPreviewBtn">Continue to Preview</button>
+    </div>
+  </div>
+</div>
+
+<!-- STEP 3: PREVIEW -->
+<div class="card-panel mb-3" id="panelPreview" style="display:none;">
+  <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+    <h2 class="h6 mb-0">Preview Dashboard</h2>
+    <div id="previewCounts" class="d-flex gap-2 flex-wrap"></div>
+  </div>
+
+  <div class="row g-2 mb-3">
+    <div class="col-6 col-md-3"><input class="form-control form-control-sm" id="searchGr" placeholder="Search GR..."></div>
+    <div class="col-6 col-md-3"><input class="form-control form-control-sm" id="searchParty" placeholder="Search Party Code..."></div>
+    <div class="col-6 col-md-3">
+      <select class="form-select form-select-sm" id="filterStatus">
+        <option value="">All Statuses</option>
+        <option value="READY">READY</option>
+        <option value="ALREADY_APPLIED">ALREADY_APPLIED</option>
+        <option value="INVALID_CN">INVALID_CN</option>
+        <option value="INVALID_PARTY">INVALID_PARTY</option>
+        <option value="ERROR">ERROR</option>
+        <option value="SKIPPED">SKIPPED</option>
+      </select>
+    </div>
+    <div class="col-6 col-md-3">
+      <button class="btn btn-sm btn-outline-secondary w-100" id="exportPreviewBtn"><i class="bi bi-download"></i> Export Preview</button>
+    </div>
+  </div>
+
+  <div class="d-flex flex-wrap gap-2 mb-3">
+    <button class="btn btn-sm btn-outline-secondary" data-bulk-select="select_all">Select All</button>
+    <button class="btn btn-sm btn-outline-secondary" data-bulk-select="select_ready">Select READY</button>
+    <button class="btn btn-sm btn-outline-secondary" data-bulk-select="deselect_errors">Deselect Errors</button>
+    <button class="btn btn-sm btn-outline-secondary" data-bulk-select="deselect_all">Deselect All</button>
+  </div>
+
+  <div id="itemsCardList" style="max-height:640px; overflow-y:auto;"></div>
+  <nav id="paginationNav" class="mt-2"></nav>
+
+  <div class="d-flex justify-content-end mt-3">
+    <button class="btn btn-primary" id="proceedToExecuteBtn"><i class="bi bi-arrow-right-circle"></i> Proceed to Confirmation</button>
+  </div>
+</div>
+
+<!-- STEP 4: EXECUTE -->
+<div class="card-panel" id="panelExecute" style="display:none;">
+  <h2 class="h6 mb-3">Confirm &amp; Execute</h2>
+  <div id="executeSummary" class="mb-3"></div>
+
+  <div class="form-check form-switch mb-3">
+    <input class="form-check-input" type="checkbox" id="dryRunToggle" {{ '' if save_api_ready else 'checked disabled' }}>
+    <label class="form-check-label" for="dryRunToggle">Dry Run (Preview only - no data modified)</label>
+  </div>
+  {% if not save_api_ready %}
+  <div class="alert alert-warning py-2 small">Save API is not configured. Execution will run in Dry Run mode only.</div>
+  {% endif %}
+
+  <div class="mb-3" id="confirmationTextWrap">
+    <label class="form-label">Type <span class="mono" id="confirmationExpected"></span> to confirm</label>
+    <input class="form-control" id="confirmationText" placeholder="MODIFY N">
+  </div>
+
+  <button class="btn btn-success" id="executeBtn"><i class="bi bi-play-circle"></i> Execute</button>
+
+  <div id="liveDashboard" class="mt-4" style="display:none;">
+    <div class="row g-2 mb-3">
+      <div class="col-6 col-md-3"><div class="kpi-card"><div class="kpi-value" id="live_total">0</div><div class="kpi-label">Total</div></div></div>
+      <div class="col-6 col-md-3"><div class="kpi-card"><div class="kpi-value" id="live_success">0</div><div class="kpi-label">Success</div></div></div>
+      <div class="col-6 col-md-3"><div class="kpi-card"><div class="kpi-value" id="live_failed">0</div><div class="kpi-label">Failed</div></div></div>
+      <div class="col-6 col-md-3"><div class="kpi-card"><div class="kpi-value" id="live_processing">0</div><div class="kpi-label">Processing</div></div></div>
+    </div>
+    <div class="progress progress-lg mb-3">
+      <div class="progress-bar bg-success" id="liveProgressBar" style="width:0%">0%</div>
+    </div>
+    <div class="d-flex gap-2 mb-3">
+      <button class="btn btn-outline-secondary btn-sm" id="pauseBtn"><i class="bi bi-pause-circle"></i> Pause</button>
+      <button class="btn btn-outline-secondary btn-sm" id="resumeBtn"><i class="bi bi-play-circle"></i> Resume</button>
+      <button class="btn btn-outline-danger btn-sm" id="stopBtn"><i class="bi bi-stop-circle"></i> Stop Safely</button>
+      <button class="btn btn-outline-secondary btn-sm ms-auto" id="retryFailedBtn"><i class="bi bi-arrow-repeat"></i> Retry Failed</button>
+      <button class="btn btn-outline-primary btn-sm" id="exportFinalBtn"><i class="bi bi-download"></i> Export Report</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="{{ url_for('static', filename='js/bulk.js') }}"></script>
+{% endblock %}

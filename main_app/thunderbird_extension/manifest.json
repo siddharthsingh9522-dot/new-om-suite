@@ -1,0 +1,37 @@
+{
+  "manifest_version": 2,
+  "name": "Auto Bill Intelligence Bridge",
+  "version": "1.0.0",
+  "description": "Connects the Auto Bill web app to Thunderbird Sent history for recipient matching and controlled sending.",
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "auto-bill-intelligence@omlogistics.local",
+      "strict_min_version": "115.15.0"
+    }
+  },
+  "permissions": [
+    "accountsRead",
+    "messagesRead",
+    "compose",
+    "compose.send",
+    "storage",
+    "alarms",
+    "notifications",
+    "http://127.0.0.1:5000/*",
+    "http://localhost:5000/*"
+  ],
+  "background": {
+    "scripts": [
+      "background.js"
+    ],
+    "persistent": false
+  },
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": true
+  },
+  "browser_action": {
+    "default_title": "Auto Bill Intelligence",
+    "default_popup": "popup.html"
+  }
+}

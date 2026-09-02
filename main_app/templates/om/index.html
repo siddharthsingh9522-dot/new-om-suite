@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OM Automation V2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('om.static', filename='style.css') }}">
+</head>
+<body>
+
+<header class="topbar">
+    <div class="topbar-inner">
+        <div class="brand-group">
+            <span class="truck-icon" aria-hidden="true">
+                <svg viewBox="0 0 48 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M2 6h24v16H2z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                    <path d="M26 12h9l7 6v4h-16z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+                    <circle cx="12" cy="25" r="3.5" stroke="currentColor" stroke-width="2"/>
+                    <circle cx="34" cy="25" r="3.5" stroke="currentColor" stroke-width="2"/>
+                    <path d="M2 11h10M2 16h7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+            </span>
+            <div class="brand-text">
+                <span class="brand">OM Logistics <span class="brand-accent">Live Tracking</span></span>
+                <span class="brand-sub">CN &middot; GST &middot; Party &mdash; single window</span>
+            </div>
+        </div>
+        <span class="live-badge"><span class="live-dot"></span>LIVE</span>
+    </div>
+</header>
+
+<main id="app" class="app"></main>
+
+<script id="pages-data" type="application/json">{{ pages | tojson }}</script>
+<script src="{{ url_for('om.static', filename='app.js') }}"></script>
+</body>
+</html>

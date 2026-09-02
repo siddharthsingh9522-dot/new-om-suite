@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Thunderbird Bridge — Settings</title>
+<link rel="stylesheet" href="/static/auth.css">
+<style>
+  .wrap{max-width:820px;margin:0 auto;padding:26px 22px 60px;}
+  h1{font-size:20px;margin:0 0 4px;}
+  .card{background:#fff;border:1px solid var(--line,#e2ded2);border-radius:8px;padding:22px;margin-bottom:18px;}
+  .kv{display:flex;gap:10px;align-items:center;margin-bottom:10px;flex-wrap:wrap;}
+  .kv label{font-family:monospace;font-size:11px;text-transform:uppercase;color:#666;min-width:90px;}
+  .kv code{background:#f6f4ee;padding:6px 10px;border-radius:4px;font-size:12.5px;word-break:break-all;flex:1;}
+  .btn{font-family:monospace;font-size:12px;border:1.5px solid #12181f;background:#12181f;color:#fff;
+       padding:8px 14px;border-radius:3px;cursor:pointer;text-transform:uppercase;text-decoration:none;display:inline-block;}
+  .btn.secondary{background:transparent;color:#12181f;}
+  ol{font-size:13.5px;line-height:1.8;}
+  table{width:100%;border-collapse:collapse;margin-top:10px;}
+  th{text-align:left;font-family:monospace;font-size:10.5px;text-transform:uppercase;color:#666;
+     border-bottom:1.5px solid #12181f;padding:7px 8px;}
+  td{padding:6px 8px;border-bottom:1px solid #e2ded2;font-size:12.5px;}
+  .badge{font-family:monospace;font-size:10px;padding:3px 8px;border-radius:20px;text-transform:uppercase;}
+  .badge.pending, .badge.delivered{background:#fbf0dc;color:#a9660b;}
+  .badge.done{background:#e7f2ea;color:#2f6b4f;}
+  .badge.error{background:#fbe7e5;color:#a52f2f;}
+</style>
+</head>
+<body>
+<div class="navbar">
+  <div>Thunderbird Bridge</div>
+  <div>
+    <a href="/">Dashboard</a>
+    <form method="post" action="/logout" style="display:inline;">
+      <button class="link" type="submit">Logout</button>
+    </form>
+  </div>
+</div>
+<div class="wrap">
+  <h1>Thunderbird Bridge Setup</h1>
+  <p style="color:#666;font-size:13px;">Ye extension Thunderbird ke andar se aapke Sent folder mein purani mail dhoondh sakta hai
+     aur (agar aap explicitly on karein) Thunderbird se hi mail bhej sakta hai.</p>
+
+  <div class="card">
+    <h2 style="font-size:15px;margin-top:0;">Aapki Bridge Details</h2>
+    <div class="kv"><label>Web App URL</label><code>{{ api_base }}</code></div>
+    <div class="kv"><label>Username</label><code>{{ me.username }}</code></div>
+    <div class="kv"><label>Bridge Token</label><code id="tokenVal">{{ token }}</code>
+      <button class="btn secondary" onclick="navigator.clipboard.writeText(document.getElementById('tokenVal').textContent);alert('Copy ho gaya')">Copy</button>
+    </div>
+    <form method="post" action="/bridge/regenerate" onsubmit="return confirm('Naya token banayenge? Purana turant kaam karna band kar dega — extension mein bhi update karna hoga.')">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <button class="btn secondary" type="submit">Token Regenerate Karein</button>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2 style="font-size:15px;margin-top:0;">Extension Install &amp; Configure</h2>
+    <ol>
+      <li>Thunderbird kholein → Add-ons and Themes → gear icon → Debug Add-ons</li>
+      <li>"Load Temporary Add-on" → extension folder mein se <code>manifest.json</code> select karein</li>
+      <li>Extension icon → Options kholein</li>
+      <li>Web App URL mein <code>{{ api_base }}</code> daalein</li>
+      <li>Username mein <code>{{ me.username }}</code> daalein</li>
+      <li>Bridge Token mein upar wala token paste karein</li>
+      <li><b>Auto-send OFF hi rehne dein</b> jab tak aap testing achhi tarah check na kar lein</li>
+      <li>Save karein, fir "Test" button se connection verify karein</li>
+    </ol>
+  </div>
+
+  <div class="card">
+    <h2 style="font-size:15px;margin-top:0;">Recent Bridge Jobs</h2>
+    <table>
+      <thead><tr><th>ID</th><th>Type</th><th>Status</th><th>Created</th><th>Result/Error</th></tr></thead>
+      <tbody>
+        {% for j in jobs %}
+        <tr>
+          <td>{{ j.id }}</td>
+          <td>{{ j.job_type }}</td>
+          <td><span class="badge {{ j.status }}">{{ j.status }}</span></td>
+          <td style="font-family:monospace;font-size:11px;">{{ j.created_at }}</td>
+          <td style="font-size:11px;max-width:300px;overflow:hidden;text-overflow:ellipsis;">
+            {{ j.error or (j.result | string)[:120] if j.result else '' }}
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="5" style="color:#999;">Abhi tak koi job nahi bani.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+</body>
+</html>

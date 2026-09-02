@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}History - GR Auto Modification System{% endblock %}
+{% block page_title %}Batch History{% endblock %}
+
+{% block content %}
+<div class="card-panel mb-3">
+  <form method="get" class="d-flex gap-2">
+    <input type="text" class="form-control" name="q" value="{{ search }}" placeholder="Search by Batch ID, filename, or remark...">
+    <button class="btn btn-primary"><i class="bi bi-search"></i> Search</button>
+  </form>
+</div>
+
+<div class="card-panel">
+  {% if batches %}
+  <div class="table-responsive">
+    <table class="table align-middle">
+      <thead>
+        <tr>
+          <th>Batch ID</th><th>Created</th><th>Type</th><th>File</th>
+          <th>Total</th><th>Success</th><th>Failed</th><th>Skipped</th>
+          <th>Duration</th><th>Status</th><th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for b in batches %}
+        <tr>
+          <td class="mono">{{ b.batch_id }}</td>
+          <td>{{ b.created_at.strftime("%Y-%m-%d %H:%M") if b.created_at else "-" }}</td>
+          <td>{{ b.batch_type|capitalize }}</td>
+          <td>{{ b.source_filename or "-" }}</td>
+          <td>{{ b.total_gr }}</td>
+          <td>{{ b.success_count }}</td>
+          <td>{{ b.failed_count }}</td>
+          <td>{{ b.skipped_count }}</td>
+          <td>{{ b.duration_seconds() or "-" }}</td>
+          <td><span class="status-pill status-{{ b.status }}">{{ b.status }}</span></td>
+          <td>
+            <a href="{{ url_for('history.detail', batch_id=b.batch_id) }}" class="btn btn-sm btn-outline-secondary">Open</a>
+            <a href="{{ url_for('history.export', batch_id=b.batch_id) }}" class="btn btn-sm btn-outline-primary"><i class="bi bi-download"></i></a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="text-muted mb-0">No batches found.</p>
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Customer Lookup — OM Logistics</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --navy: #00355c;
+    --blue: #00558e;
+    --blue-light: #e8f1f8;
+    --amber: #e8871e;
+    --amber-dark: #c96f10;
+    --ink: #1a2332;
+    --ink-soft: #5b6472;
+    --paper: #f6f7f9;
+    --line: #dde2e8;
+    --white: #ffffff;
+    --ok: #2e7d4f;
+    --err: #c0392b;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'IBM Plex Sans', system-ui, sans-serif;
+  }
+  header.topbar {
+    background: linear-gradient(90deg, var(--navy), var(--blue));
+    color: white;
+    padding: 18px 32px;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    border-bottom: 4px solid var(--amber);
+  }
+  header.topbar .brand {
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    font-size: 1.15rem;
+    text-transform: uppercase;
+  }
+  header.topbar .sub {
+    font-size: 0.8rem;
+    color: #cfe2f0;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+
+  .wrap {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 28px 24px 60px;
+  }
+
+  .tabs {
+    display: flex;
+    gap: 2px;
+    margin-bottom: -1px;
+    position: relative;
+    z-index: 2;
+  }
+  .tab {
+    padding: 12px 22px;
+    background: var(--line);
+    color: var(--ink-soft);
+    font-weight: 600;
+    font-size: 0.92rem;
+    cursor: pointer;
+    border-radius: 8px 8px 0 0;
+    user-select: none;
+    transition: background 0.15s, color 0.15s;
+  }
+  .tab.active {
+    background: var(--white);
+    color: var(--navy);
+    box-shadow: 0 -2px 0 var(--amber) inset;
+  }
+  .tab:not(.active):hover { background: #cfd6de; }
+
+  .panel {
+    background: var(--white);
+    border: 1px solid var(--line);
+    border-radius: 0 10px 10px 10px;
+    padding: 28px;
+  }
+  .panel.hidden { display: none; }
+
+  h1.page-title {
+    font-size: 1.4rem;
+    margin: 0 0 4px;
+    color: var(--navy);
+  }
+  p.page-desc {
+    color: var(--ink-soft);
+    margin: 0 0 24px;
+    font-size: 0.92rem;
+  }
+
+  .field-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+  .field label {
+    display: block;
+    font-size: 0.78rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--ink-soft);
+    margin-bottom: 6px;
+  }
+  .field input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    font-size: 0.95rem;
+    font-family: 'IBM Plex Mono', monospace;
+    color: var(--ink);
+    background: var(--paper);
+  }
+  .field input:focus {
+    outline: none;
+    border-color: var(--blue);
+    background: white;
+  }
+
+  button.btn {
+    background: var(--amber);
+    color: white;
+    border: none;
+    padding: 11px 26px;
+    font-weight: 600;
+    font-size: 0.92rem;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  button.btn:hover { background: var(--amber-dark); }
+  button.btn:disabled { background: #cfd6de; cursor: not-allowed; }
+
+  .dropzone {
+    border: 2px dashed var(--line);
+    border-radius: 8px;
+    padding: 40px 20px;
+    text-align: center;
+    color: var(--ink-soft);
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+    margin-bottom: 20px;
+  }
+  .dropzone.drag { border-color: var(--blue); background: var(--blue-light); }
+  .dropzone strong { color: var(--navy); }
+  .dropzone input { display: none; }
+  .file-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--blue-light);
+    color: var(--navy);
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.85rem;
+    margin-top: 10px;
+  }
+
+  .status-line {
+    margin-top: 16px;
+    font-size: 0.88rem;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+  .status-line.ok { color: var(--ok); }
+  .status-line.err { color: var(--err); }
+
+  .manifest {
+    margin-top: 24px;
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.82rem;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+  .manifest th {
+    background: var(--navy);
+    color: white;
+    text-align: left;
+    padding: 8px 10px;
+    position: sticky;
+    top: 0;
+    white-space: nowrap;
+  }
+  .manifest td {
+    padding: 7px 10px;
+    border-bottom: 1px solid var(--line);
+    white-space: nowrap;
+  }
+  .manifest tr:nth-child(even) td { background: var(--paper); }
+  .manifest-scroll {
+    max-height: 420px;
+    overflow: auto;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    margin-top: 16px;
+  }
+
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.72rem;
+    font-weight: 600;
+  }
+  .badge.found { background: #e3f4e9; color: var(--ok); }
+  .badge.notfound { background: #fbe6e3; color: var(--err); }
+
+  .summary-cards {
+    display: flex;
+    gap: 14px;
+    margin-top: 20px;
+  }
+  .summary-card {
+    flex: 1;
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 14px 16px;
+  }
+  .summary-card .num {
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: var(--navy);
+    font-family: 'IBM Plex Mono', monospace;
+  }
+  .summary-card .lbl {
+    font-size: 0.78rem;
+    color: var(--ink-soft);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+
+  a.download-btn {
+    display: inline-block;
+    margin-top: 18px;
+    background: var(--navy);
+    color: white;
+    text-decoration: none;
+    padding: 11px 24px;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 0.92rem;
+  }
+  a.download-btn:hover { background: var(--blue); }
+
+  .spinner {
+    display: inline-block;
+    width: 14px; height: 14px;
+    border: 2px solid var(--line);
+    border-top-color: var(--amber);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    vertical-align: middle;
+    margin-right: 8px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .progress-wrap {
+    margin-top: 18px;
+  }
+  .progress-track {
+    width: 100%;
+    height: 10px;
+    background: var(--line);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    width: 0%;
+    background: var(--amber);
+    transition: width 0.25s ease;
+  }
+  .progress-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.8rem;
+    color: var(--ink-soft);
+    font-family: 'IBM Plex Mono', monospace;
+    margin-top: 6px;
+  }
+  button.btn-stop {
+    background: var(--white);
+    color: var(--err);
+    border: 1px solid var(--err);
+    padding: 9px 20px;
+    font-weight: 600;
+    font-size: 0.85rem;
+    border-radius: 6px;
+    cursor: pointer;
+    margin-left: 10px;
+  }
+  button.btn-stop:hover { background: #fbe6e3; }
+  button.btn-stop:disabled { opacity: 0.5; cursor: not-allowed; }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">OM Logistics · Customer Lookup</div>
+  <div class="sub">customer.php · u=39942</div>
+</header>
+
+<div class="wrap">
+  <div class="tabs">
+    <div class="tab active" data-tab="manual">Manual Search</div>
+    <div class="tab" data-tab="bulk">Bulk Excel Search</div>
+  </div>
+
+  <!-- MANUAL SEARCH PANEL -->
+  <div class="panel" id="panel-manual">
+    <h1 class="page-title">Manual Search</h1>
+    <p class="page-desc">Search a single customer by code, name, location or GST number.</p>
+
+    <div class="field-grid">
+      <div class="field"><label>Customer Name</label><input id="m-cname" placeholder="e.g. GABRIEL INDIA"></div>
+      <div class="field"><label>Customer Code</label><input id="m-ccode" placeholder="e.g. 213853"></div>
+      <div class="field"><label>Booking Location</label><input id="m-lcode" placeholder="e.g. 102"></div>
+      <div class="field"><label>Billing Location</label><input id="m-blcode" placeholder="e.g. 101"></div>
+      <div class="field"><label>Master Code</label><input id="m-mcode" placeholder="optional"></div>
+      <div class="field"><label>GST No.</label><input id="m-custgst" placeholder="optional"></div>
+    </div>
+
+    <button class="btn" id="btn-manual-search">Search</button>
+    <div class="status-line" id="manual-status"></div>
+
+    <div class="manifest-scroll" id="manual-results-wrap" style="display:none;">
+      <table class="manifest" id="manual-results-table"></table>
+    </div>
+  </div>
+
+  <!-- BULK SEARCH PANEL -->
+  <div class="panel hidden" id="panel-bulk">
+    <h1 class="page-title">Bulk Excel Search</h1>
+    <p class="page-desc">Upload an Excel file with a column of customer codes. Each code is looked up automatically.</p>
+
+    <div class="dropzone" id="dropzone">
+      <div>📄 <strong>Click to choose</strong> or drag an Excel file here</div>
+      <div id="file-chip-wrap"></div>
+      <input type="file" id="bulk-file" accept=".xlsx,.xls">
+    </div>
+
+    <button class="btn" id="btn-bulk-search" disabled>Run Bulk Search</button>
+    <button class="btn-stop" id="btn-bulk-stop" style="display:none;">Stop</button>
+    <div class="status-line" id="bulk-status"></div>
+
+    <div class="progress-wrap" id="bulk-progress-wrap" style="display:none;">
+      <div class="progress-track"><div class="progress-fill" id="bulk-progress-fill"></div></div>
+      <div class="progress-label">
+        <span id="bulk-progress-text">0 / 0 processed</span>
+        <span id="bulk-progress-pct">0%</span>
+      </div>
+    </div>
+
+    <div class="summary-cards" id="bulk-summary" style="display:none;">
+      <div class="summary-card"><div class="num" id="sum-total">0</div><div class="lbl">Total Codes</div></div>
+      <div class="summary-card"><div class="num" id="sum-found">0</div><div class="lbl">Found</div></div>
+      <div class="summary-card"><div class="num" id="sum-notfound">0</div><div class="lbl">Not Found</div></div>
+    </div>
+
+    <div id="bulk-download-wrap"></div>
+  </div>
+</div>
+
+<script>
+// ---- Tabs ----
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    const target = tab.dataset.tab;
+    document.getElementById('panel-manual').classList.toggle('hidden', target !== 'manual');
+    document.getElementById('panel-bulk').classList.toggle('hidden', target !== 'bulk');
+  });
+});
+
+// ---- Manual search ----
+document.getElementById('btn-manual-search').addEventListener('click', async () => {
+  const btn = document.getElementById('btn-manual-search');
+  const statusEl = document.getElementById('manual-status');
+  const wrap = document.getElementById('manual-results-wrap');
+  const table = document.getElementById('manual-results-table');
+
+  const payload = {
+    cname: document.getElementById('m-cname').value,
+    ccode: document.getElementById('m-ccode').value,
+    lcode: document.getElementById('m-lcode').value,
+    blcode: document.getElementById('m-blcode').value,
+    mcode: document.getElementById('m-mcode').value,
+    custgst: document.getElementById('m-custgst').value,
+  };
+
+  btn.disabled = true;
+  statusEl.className = 'status-line';
+  statusEl.innerHTML = '<span class="spinner"></span> Searching...';
+  wrap.style.display = 'none';
+
+  try {
+    const res = await fetch('/customer/api/manual-search', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+
+    if (!data.ok) {
+      statusEl.className = 'status-line err';
+      statusEl.textContent = 'Error: ' + data.error;
+      return;
+    }
+
+    if (data.rows.length === 0) {
+      statusEl.className = 'status-line err';
+      statusEl.textContent = 'No matching customer found.';
+      return;
+    }
+
+    statusEl.className = 'status-line ok';
+    statusEl.textContent = `${data.rows.length} result(s) found.`;
+
+    let html = '<thead><tr>' + data.columns.map(c => `<th>${c}</th>`).join('') + '</tr></thead><tbody>';
+    for (const row of data.rows) {
+      html += '<tr>' + data.columns.map(c => `<td>${row[c] || ''}</td>`).join('') + '</tr>';
+    }
+    html += '</tbody>';
+    table.innerHTML = html;
+    wrap.style.display = 'block';
+  } catch (e) {
+    statusEl.className = 'status-line err';
+    statusEl.textContent = 'Request failed: ' + e.message;
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+// ---- Bulk search ----
+const dropzone = document.getElementById('dropzone');
+const fileInput = document.getElementById('bulk-file');
+const btnBulk = document.getElementById('btn-bulk-search');
+let selectedFile = null;
+
+dropzone.addEventListener('click', () => fileInput.click());
+dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('drag'); });
+dropzone.addEventListener('dragleave', () => dropzone.classList.remove('drag'));
+dropzone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropzone.classList.remove('drag');
+  if (e.dataTransfer.files.length) setFile(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener('change', () => {
+  if (fileInput.files.length) setFile(fileInput.files[0]);
+});
+
+function setFile(file) {
+  selectedFile = file;
+  document.getElementById('file-chip-wrap').innerHTML =
+    `<div class="file-chip">📎 ${file.name}</div>`;
+  btnBulk.disabled = false;
+}
+
+const btnStop = document.getElementById('btn-bulk-stop');
+const progressWrap = document.getElementById('bulk-progress-wrap');
+const progressFill = document.getElementById('bulk-progress-fill');
+const progressText = document.getElementById('bulk-progress-text');
+const progressPct = document.getElementById('bulk-progress-pct');
+
+let pollTimer = null;
+let currentJobId = null;
+
+function stopPolling() {
+  if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+}
+
+function renderProgress(job) {
+  const total = job.total || 0;
+  const done = job.done || 0;
+  const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+  progressFill.style.width = pct + '%';
+  progressText.textContent = `${done} / ${total} processed`;
+  progressPct.textContent = pct + '%';
+
+  document.getElementById('sum-total').textContent = total;
+  document.getElementById('sum-found').textContent = job.found || 0;
+  document.getElementById('sum-notfound').textContent = job.not_found || 0;
+}
+
+function finishJob(job, statusEl, summary, downloadWrap) {
+  stopPolling();
+  btnBulk.disabled = false;
+  btnStop.style.display = 'none';
+
+  if (job.status === 'error') {
+    statusEl.className = 'status-line err';
+    statusEl.textContent = 'Error: ' + job.error;
+    progressWrap.style.display = 'none';
+    return;
+  }
+
+  renderProgress(job);
+  summary.style.display = 'flex';
+
+  if (job.status === 'stopped') {
+    statusEl.className = 'status-line err';
+    statusEl.textContent = `Stopped. ${job.done} of ${job.total} processed — partial results are ready below.`;
+  } else {
+    statusEl.className = 'status-line ok';
+    statusEl.textContent = 'Done.';
+  }
+
+  if (job.download_url) {
+    downloadWrap.innerHTML = `<a class="download-btn" href="${job.download_url}">⬇ Download Results Excel${job.status === 'stopped' ? ' (partial)' : ''}</a>`;
+  }
+}
+
+btnBulk.addEventListener('click', async () => {
+  if (!selectedFile) return;
+  const statusEl = document.getElementById('bulk-status');
+  const summary = document.getElementById('bulk-summary');
+  const downloadWrap = document.getElementById('bulk-download-wrap');
+
+  btnBulk.disabled = true;
+  btnStop.style.display = 'inline-block';
+  btnStop.disabled = false;
+  summary.style.display = 'none';
+  downloadWrap.innerHTML = '';
+  progressWrap.style.display = 'block';
+  progressFill.style.width = '0%';
+  progressText.textContent = '0 / 0 processed';
+  progressPct.textContent = '0%';
+  statusEl.className = 'status-line';
+  statusEl.innerHTML = '<span class="spinner"></span> Starting...';
+
+  const formData = new FormData();
+  formData.append('file', selectedFile);
+
+  try {
+    const startRes = await fetch('/customer/api/bulk-search/start', { method: 'POST', body: formData });
+    const startData = await startRes.json();
+
+    if (!startData.ok) {
+      statusEl.className = 'status-line err';
+      statusEl.textContent = 'Error: ' + startData.error;
+      btnBulk.disabled = false;
+      btnStop.style.display = 'none';
+      return;
+    }
+
+    currentJobId = startData.job_id;
+    statusEl.innerHTML = '<span class="spinner"></span> Processing... this may take a while for large lists.';
+
+    pollTimer = setInterval(async () => {
+      try {
+        const res = await fetch(`/customer/api/bulk-search/status/${currentJobId}`);
+        const job = await res.json();
+
+        if (!job.ok) {
+          stopPolling();
+          statusEl.className = 'status-line err';
+          statusEl.textContent = 'Error: ' + (job.error || 'lost track of job');
+          btnBulk.disabled = false;
+          btnStop.style.display = 'none';
+          return;
+        }
+
+        if (job.status === 'done' || job.status === 'stopped' || job.status === 'error') {
+          finishJob(job, statusEl, summary, downloadWrap);
+        } else {
+          renderProgress(job);
+          if (job.total > 0) summary.style.display = 'flex';
+        }
+      } catch (e) {
+        // transient network hiccup while polling - keep trying
+      }
+    }, 1200);
+  } catch (e) {
+    statusEl.className = 'status-line err';
+    statusEl.textContent = 'Request failed: ' + e.message;
+    btnBulk.disabled = false;
+    btnStop.style.display = 'none';
+  }
+});
+
+btnStop.addEventListener('click', async () => {
+  if (!currentJobId) return;
+  btnStop.disabled = true;
+  const statusEl = document.getElementById('bulk-status');
+  statusEl.innerHTML = '<span class="spinner"></span> Stopping... finishing current code and saving partial results.';
+  try {
+    await fetch(`/customer/api/bulk-search/stop/${currentJobId}`, { method: 'POST' });
+  } catch (e) {
+    // ignore - polling will still pick up the final status once the job writes it
+  }
+});
+</script>
+
+</body>
+</html>

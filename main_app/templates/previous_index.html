@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Previous Mail &amp; Format</title>
+<link rel="stylesheet" href="/static/auth.css">
+<style>
+  .wrap{max-width:700px;margin:30px auto;padding:0 22px 60px;}
+  .card{background:#fff;border:1px solid #e2ded2;border-radius:8px;padding:28px;margin-bottom:18px;}
+  h1{font-size:21px;margin:0 0 6px;}
+  p.sub{color:#666;font-size:13px;margin:0 0 20px;}
+  h2{font-size:15px;margin:0 0 12px;}
+  label{display:block;font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:#666;margin:14px 0 5px;}
+  input[type=file], input[type=text], textarea{width:100%;padding:9px 11px;border:1.5px solid #e2ded2;border-radius:5px;font-size:13px;}
+  textarea{min-height:100px;font-family:monospace;}
+  .tabs{display:flex;gap:8px;margin-bottom:14px;}
+  .tab-btn{padding:8px 14px;border:1.5px solid #e2ded2;background:#fff;border-radius:5px;cursor:pointer;font-size:12.5px;}
+  .tab-btn.active{background:#12181f;color:#fff;border-color:#12181f;}
+  .tab-panel{display:none;}
+  .tab-panel.active{display:block;}
+  button.submit{margin-top:22px;width:100%;padding:12px;background:#12181f;color:#fff;border:none;border-radius:5px;font-size:14px;cursor:pointer;}
+  .hint{font-size:12px;color:#999;margin-top:4px;}
+</style>
+</head>
+<body>
+<div class="navbar">
+  <div>Previous Mail &amp; Format</div>
+  <div>
+    <a href="/">Dashboard</a>
+    <form method="post" action="/logout" style="display:inline;">
+      <button class="link" type="submit">Logout</button>
+    </form>
+  </div>
+</div>
+<div class="wrap">
+  <h1>Previous Mail &amp; Format</h1>
+  <p class="sub">Purani mail ka format use karke naye data se mail banayein — TBB/Bill se alag,
+     kisi bhi tarah ka mail is se ban sakta hai.</p>
+
+  <form action="/previous-mail/analyze" method="post" enctype="multipart/form-data">
+    <div class="card">
+      <h2>Step 1 — Purani Mail</h2>
+      <div class="tabs">
+        <button type="button" class="tab-btn active" data-tab="eml">.eml Upload Karein</button>
+        <button type="button" class="tab-btn" data-tab="manual">Manually Paste Karein</button>
+      </div>
+      <div class="tab-panel active" id="tab-eml">
+        <label>Purani email ki .eml file</label>
+        <input type="file" name="eml_file" accept=".eml">
+        <div class="hint">Thunderbird/Outlook mein mail ko right-click → Save As → .eml se export ho jati hai.</div>
+      </div>
+      <div class="tab-panel" id="tab-manual">
+        <label>TO</label><input type="text" name="old_to" placeholder="jisko bheji thi">
+        <label>CC</label><input type="text" name="old_cc">
+        <label>BCC</label><input type="text" name="old_bcc">
+        <label>Subject</label><input type="text" name="old_subject">
+        <label>Body</label><textarea name="old_body"></textarea>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Step 2 — Naya Data</h2>
+      <label>Data Sheet (.xls/.xlsx/.csv)</label>
+      <input type="file" name="data_file" accept=".xls,.xlsx,.csv" required>
+      <div class="hint">Koi bhi columns ho sakte hain — agle step mein AI purani mail ka format is data ke saath match karega.</div>
+    </div>
+
+    <button class="submit" type="submit">Analyze Karein →</button>
+  </form>
+</div>
+<script>
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.onclick = () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+  };
+});
+</script>
+</body>
+</html>

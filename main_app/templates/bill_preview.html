@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bill Generated Mail — Preview</title>
+<link rel="stylesheet" href="/static/auth.css">
+<style>
+  :root{--ink:#12181f;--ink-soft:#4c5766;--paper:#f6f4ee;--panel:#fff;--line:#e2ded2;
+        --accent:#8a3b2b;--ok:#2f6b4f;--ok-bg:#e7f2ea;--warn:#a9660b;--warn-bg:#fbf0dc;
+        --miss:#a52f2f;--miss-bg:#fbe7e5;--mono:'JetBrains Mono',Consolas,monospace;}
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:Inter,Segoe UI,sans-serif;}
+  .wrap{max-width:1200px;margin:0 auto;padding:26px 22px 80px;}
+  h1{font-size:20px;margin:0;}
+  .stats{font-family:var(--mono);font-size:12.5px;color:var(--ink-soft);}
+  header.top{display:flex;justify-content:space-between;align-items:center;border-bottom:3px solid var(--ink);
+             padding-bottom:14px;margin-bottom:18px;flex-wrap:wrap;gap:10px;}
+  .toolbar{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center;}
+  .btn{font-family:var(--mono);font-size:12.5px;border:1.5px solid var(--ink);background:var(--ink);color:#fff;
+       padding:10px 16px;border-radius:3px;cursor:pointer;text-transform:uppercase;text-decoration:none;display:inline-block;}
+  .btn.secondary{background:transparent;color:var(--ink);}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:6px;margin-bottom:12px;overflow:hidden;}
+  .card-head{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:14px 18px;cursor:pointer;flex-wrap:wrap;}
+  .card-head:hover{background:#fbfaf6;}
+  .code{font-family:var(--mono);font-size:12px;color:var(--ink-soft);background:#efece2;padding:2px 7px;border-radius:3px;}
+  .bname{font-family:var(--serif);font-size:16px;font-weight:600;}
+  .meta-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+  .badge{font-family:var(--mono);font-size:10.5px;text-transform:uppercase;padding:4px 10px;border-radius:20px;white-space:nowrap;}
+  .badge.pending{background:#eee;color:#777;}
+  .badge.ok{background:var(--ok-bg);color:var(--ok);}
+  .badge.review{background:var(--warn-bg);color:var(--warn);}
+  .badge.missing{background:var(--miss-bg);color:var(--miss);}
+  .badge.sent{background:var(--ok-bg);color:var(--ok);}
+  .badge.failed{background:var(--miss-bg);color:var(--miss);}
+  .card-body{border-top:1px solid var(--line);padding:18px;display:none;background:#fdfcf9;}
+  .card.expanded .card-body{display:block;}
+  .field label{display:block;font-family:var(--mono);font-size:10.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--ink-soft);margin-bottom:5px;}
+  .field input{width:280px;font-family:var(--sans);font-size:13.5px;padding:9px 11px;border:1.5px solid var(--line);border-radius:4px;}
+  .subject-preview{font-family:var(--mono);font-size:12px;background:#efece2;padding:8px 10px;border-radius:4px;margin-top:10px;word-break:break-all;}
+  .table-scroll{overflow-x:auto;margin-top:12px;border:1px solid var(--line);border-radius:4px;}
+  .ai-note{margin-top:14px;padding:12px 14px;border-radius:5px;font-size:13px;display:none;border:1px solid transparent;}
+  .ai-note.show{display:block;}
+  .ai-note.ok{background:var(--ok-bg);border-color:#bfe0cd;color:var(--ok);}
+  .ai-note.review{background:var(--warn-bg);border-color:#f0d9ab;color:var(--warn);}
+  .ai-note.missing{background:var(--miss-bg);border-color:#f0c4c1;color:var(--miss);}
+  .actions{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap;}
+  .btn.small{padding:8px 14px;font-size:11.5px;}
+  .btn.send{background:var(--ok);border-color:var(--ok);}
+  .btn.check{background:var(--accent);border-color:var(--accent);}
+</style>
+</head>
+<body>
+<div class="navbar">
+  <div>Bill Generated Mail</div>
+  <div>
+    <a href="/">Dashboard</a>
+    <a href="/tbb">TBB Party Mail</a>
+    <a href="/bill">Bill Generated Mail</a>
+    {% if me and me.role == 'admin' %}<a href="/admin/users">Users</a>{% endif %}
+    <form method="post" action="/logout" style="display:inline;">
+      <button class="link" type="submit">Logout</button>
+    </form>
+  </div>
+</div>
+<div class="wrap">
+  <header class="top">
+    <h1>Bill Generated Mail — Preview</h1>
+    <div class="stats">{{ branches|length }} branches · {{ total_bills }} bills · {{ missing_email }} email missing</div>
+  </header>
+
+  {% if not ai_enabled %}
+  <div class="ai-note review show">Koi AI key set nahi hai — AI check available nahi hai. Manually verify karke hi bhejein.</div>
+  {% endif %}
+
+  <div class="ai-note review show" style="background:var(--ok-bg);color:var(--ok);">
+    Generated: {{ counts.generated }} · Draft: {{ counts.draft }} · Queued: {{ counts.queued }} ·
+    Skipped: {{ counts.skipped }} · Sent: {{ counts.sent }} · Failed: {{ counts.failed }}
+  </div>
+
+  <div class="toolbar" style="background:#fff;border:1px solid var(--line);padding:10px 14px;border-radius:6px;">
+    <span style="font-family:var(--mono);font-size:11px;color:var(--ink-soft);text-transform:uppercase;">Sabhi Branch Mein CC/BCC Add Karein:</span>
+    <input type="text" id="globalCC" class="email-input" style="width:220px;" placeholder="CC email(s), comma se">
+    <input type="text" id="globalBCC" class="email-input" style="width:220px;" placeholder="BCC email(s), comma se">
+    <button class="btn secondary" id="applyGlobalBtn">Sabhi Mein Apply Karein</button>
+  </div>
+
+  <div class="toolbar">
+    <button class="btn" id="checkAllBtn">AI Check — Sabhi Branch</button>
+    <button class="btn secondary" id="selectAllBtn">Sab Select Karein</button>
+    <button class="btn secondary" id="deselectAllBtn">Sab Deselect Karein</button>
+    <button class="btn" id="confirmBtn" style="background:var(--accent);border-color:var(--accent);">Selection Confirm Karein</button>
+    <button class="btn" id="sendAllBtn" style="background:var(--ok);border-color:var(--ok);">Queued Mails Bhejein (jo AI OK hain)</button>
+    <button class="btn secondary" id="retryBtn">Sirf Failed Retry Karein</button>
+    <a href="/bill/logs" class="btn secondary">Send Log Download</a>
+    <a href="/bill" class="btn secondary">Nayi Sheet Upload Karein</a>
+  </div>
+
+  <div id="cardsHost">
+    {% for code, b in branches.items() %}
+    <div class="card" id="card-{{ code }}">
+      <div class="card-head" data-code="{{ code }}">
+        <div>
+          <input type="checkbox" class="sel-check" data-code="{{ code }}" onclick="event.stopPropagation()"
+                 {{ 'checked' if b.op_selected and b.op_status in ['DRAFT','QUEUED'] else '' }}
+                 {{ 'disabled' if b.op_status in ['SENT','SENDING'] else '' }}>
+          <span class="code">{{ b.branch_code }}</span>
+          <span class="bname">{{ b.branch_name_sheet }}</span>
+        </div>
+        <div class="meta-row">
+          <span>{{ b.bills|length }} bills</span>
+          <span class="badge {{ 'ok' if b.op_status=='QUEUED' else ('sent' if b.op_status=='SENT' else ('failed' if b.op_status=='FAILED' else ('missing' if b.op_status=='SKIPPED' else 'pending'))) }}">{{ b.op_status }}</span>
+          <span id="badge-{{ code }}"><span class="badge {{ 'missing' if not b.email else 'pending' }}">{{ 'Email Missing' if not b.email else 'Pending Check' }}</span></span>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="field">
+          <label>Bhejne wala email (TO)</label>
+          <input type="text" id="email-{{ code }}" value="{{ b.email or '' }}" placeholder="branch email yahan likhein">
+        </div>
+        <div class="field" style="margin-top:8px;">
+          <label>CC</label>
+          <input type="text" id="cc-{{ code }}" placeholder="CC (optional, comma se)">
+        </div>
+        <div class="field" style="margin-top:8px;">
+          <label>BCC</label>
+          <input type="text" id="bcc-{{ code }}" placeholder="BCC (optional, comma se)">
+        </div>
+        <div class="subject-preview">{{ b.subject_preview }}</div>
+        <div class="table-scroll">{{ b.table_html|safe }}</div>
+        <div class="ai-note" id="ainote-{{ code }}"></div>
+        <div class="actions">
+          <button class="btn small check" data-action="check" data-code="{{ code }}">AI Check</button>
+          <button class="btn small send" data-action="send" data-code="{{ code }}" disabled>Mail Bhejein</button>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<script>
+document.querySelectorAll('.card-head').forEach(el => {
+  el.onclick = () => el.closest('.card').classList.toggle('expanded');
+});
+
+function badgeHtml(status){
+  const map = {pending:'Pending Check', ok:'AI OK', review:'Review Chahiye', missing:'Email Missing', checking:'Checking...', unavailable:'AI Unavailable', ai_error:'AI Error', sent:'Sent', failed:'Failed'};
+  return `<span class="badge ${status}">${map[status]||status}</span>`;
+}
+
+async function aiCheck(code){
+  const email = document.getElementById('email-'+code).value.trim();
+  document.getElementById('badge-'+code).innerHTML = badgeHtml('checking');
+  let resp;
+  try {
+    resp = await fetch('/api/bill/ai_check/'+code, {
+      method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({email, cc: document.getElementById('cc-'+code)?.value.trim()||'', bcc: document.getElementById('bcc-'+code)?.value.trim()||''})
+    });
+  } catch(e) {
+    document.getElementById('badge-'+code).innerHTML = badgeHtml('ai_error');
+    return;
+  }
+  const data = await resp.json();
+  const status = data.status || 'review';
+  document.getElementById('badge-'+code).innerHTML = badgeHtml(status);
+  const note = document.getElementById('ainote-'+code);
+  note.className = 'ai-note show ' + (status === 'ok' ? 'ok' : (status === 'missing' ? 'missing' : 'review'));
+  note.innerHTML = `<b>AI Verdict: ${status}</b><br>${data.reason||''}`;
+  const sendBtn = document.querySelector(`[data-action="send"][data-code="${code}"]`);
+  if (sendBtn) sendBtn.disabled = false;
+}
+
+async function sendOne(code){
+  const email = document.getElementById('email-'+code).value.trim();
+  if(!email){ alert('Email address dalein pehle'); return; }
+  const resp = await fetch('/api/bill/send/'+code, {
+    method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({email, cc: document.getElementById('cc-'+code)?.value.trim()||'', bcc: document.getElementById('bcc-'+code)?.value.trim()||''})
+  });
+  const data = await resp.json();
+  if(data.status === 'already_sent'){
+    document.getElementById('badge-'+code).innerHTML = badgeHtml('sent');
+    alert('Ye mail pehle hi bheji ja chuki hai — dobara nahi bheji jayegi.');
+  } else {
+    document.getElementById('badge-'+code).innerHTML = data.status === 'sent' ? badgeHtml('sent') : badgeHtml('failed');
+    if (data.status !== 'sent') alert(data.detail || 'Mail send failed.');
+  }
+}
+
+document.querySelectorAll('[data-action="check"]').forEach(btn => btn.onclick = (e) => { e.stopPropagation(); aiCheck(btn.dataset.code); });
+document.querySelectorAll('[data-action="send"]').forEach(btn => btn.onclick = (e) => { e.stopPropagation(); sendOne(btn.dataset.code); });
+
+document.getElementById('checkAllBtn').onclick = async () => {
+  const codes = [...document.querySelectorAll('.card')].map(c => c.id.replace('card-',''));
+  for (const code of codes) await aiCheck(code);
+};
+
+document.getElementById('applyGlobalBtn').onclick = () => {
+  const cc = document.getElementById('globalCC').value.trim();
+  const bcc = document.getElementById('globalBCC').value.trim();
+  if(!cc && !bcc){ alert('Pehle CC ya BCC email dalein'); return; }
+  let count = 0;
+  document.querySelectorAll('[id^="cc-"]').forEach(input => {
+    if(cc){
+      const existing = input.value.trim();
+      const parts = existing ? existing.split(',').map(x=>x.trim()).filter(Boolean) : [];
+      cc.split(',').map(x=>x.trim()).filter(Boolean).forEach(e => { if(!parts.includes(e)) parts.push(e); });
+      input.value = parts.join(', ');
+      count++;
+    }
+  });
+  document.querySelectorAll('[id^="bcc-"]').forEach(input => {
+    if(bcc){
+      const existing = input.value.trim();
+      const parts = existing ? existing.split(',').map(x=>x.trim()).filter(Boolean) : [];
+      bcc.split(',').map(x=>x.trim()).filter(Boolean).forEach(e => { if(!parts.includes(e)) parts.push(e); });
+      input.value = parts.join(', ');
+    }
+  });
+  alert(`${count} branches ke CC/BCC field update ho gaye.`);
+};
+
+document.getElementById('sendAllBtn').onclick = async () => {
+  if(!confirm('Sabhi QUEUED (confirm ki hui) aur AI-OK branches ko abhi mail bhej di jayegi. Confirm karein?')) return;
+  const recipients = {};
+  document.querySelectorAll('.card').forEach(card => {
+    const code = card.id.replace('card-','');
+    const ccInput = document.getElementById('cc-'+code);
+    const bccInput = document.getElementById('bcc-'+code);
+    recipients[code] = {cc: ccInput?.value.trim()||'', bcc: bccInput?.value.trim()||''};
+  });
+  const resp = await fetch('/api/bill/send_all', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({recipients})
+  });
+  const data = await resp.json();
+  data.results.forEach(r => {
+    const el = document.getElementById('badge-'+r.code);
+    if(!el) return;
+    if(r.status === 'sent') el.innerHTML = badgeHtml('sent');
+    else if(r.status === 'failed') el.innerHTML = badgeHtml('failed');
+    else if(r.status === 'skipped_needs_review') el.innerHTML = badgeHtml('review');
+    else if(r.status === 'skipped_missing_email') el.innerHTML = badgeHtml('missing');
+  });
+  alert('Send All complete.');
+  location.reload();
+};
+
+document.getElementById('selectAllBtn').onclick = () => {
+  document.querySelectorAll('.sel-check:not(:disabled)').forEach(c => c.checked = true);
+};
+document.getElementById('deselectAllBtn').onclick = () => {
+  document.querySelectorAll('.sel-check:not(:disabled)').forEach(c => c.checked = false);
+};
+
+document.getElementById('confirmBtn').onclick = async () => {
+  const selected = [...document.querySelectorAll('.sel-check:checked')].map(c => c.dataset.code);
+  const total = document.querySelectorAll('.sel-check').length;
+  if(!confirm(`${total} generated mein se ${selected.length} select ki hain. Baaki ${total-selected.length} SKIP ho jayengi. Confirm karein?`)) return;
+  const resp = await fetch('/api/bill/confirm_selection', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({selected_codes: selected})
+  });
+  const data = await resp.json();
+  alert(`Confirm ho gaya — Selected: ${data.selected}, Skipped: ${data.skipped}`);
+  location.reload();
+};
+
+document.getElementById('retryBtn').onclick = async () => {
+  const resp = await fetch('/api/bill/retry_failed', {method:'POST'});
+  const data = await resp.json();
+  alert(`${data.requeued.length} FAILED mail(s) wapas QUEUED ho gayi.`);
+  location.reload();
+};
+</script>
+</body>
+</html>

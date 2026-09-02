@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+{% block title %}{{ module.display_name }} - GR Auto Modification System{% endblock %}
+{% block page_title %}{{ module.display_name }} &middot; Single CN{% endblock %}
+
+{% block content %}
+<div class="row g-3">
+  <div class="col-12 col-lg-5">
+    <div class="card-panel">
+      <h2 class="h6 mb-3"><i class="bi {{ module.icon }}"></i> Enter Details</h2>
+      <div class="mb-3">
+        <label class="form-label">GR / CN / Docket / LR Number</label>
+        <input type="text" class="form-control" id="grNumber" placeholder="e.g. 1603261001552">
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label">New {{ module.value_label }} <span class="text-muted small">(optional - leave blank to only change the remark)</span></label>
+        {% if module.kind == 'dropdown' %}
+        <select class="form-select" id="newValue">
+          <option value="">(no change)</option>
+          {% for opt in module.options %}
+          <option value="{{ opt.value }}">{{ opt.label }}</option>
+          {% endfor %}
+        </select>
+        {% else %}
+        <input type="text" class="form-control" id="newValue" placeholder="New {{ module.value_label }}">
+        {% endif %}
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label">New Remark</label>
+        <textarea class="form-control" id="newRemark" rows="4" placeholder="Remark to prepend"></textarea>
+      </div>
+
+      <div class="form-check form-switch mb-3" id="aiToggleWrap" style="{{ 'display:none;' if not ai_configured }}">
+        <input class="form-check-input" type="checkbox" id="aiToggle">
+        <label class="form-check-label" for="aiToggle">Include AI Assistant analysis</label>
+      </div>
+
+      <button class="btn btn-primary w-100" id="previewBtn"><i class="bi bi-eye"></i> Preview</button>
+    </div>
+
+    <div class="card-panel mt-3" id="aiPanel" style="display:none;">
+      <h2 class="h6 mb-2"><i class="bi bi-stars"></i> AI Assistant</h2>
+      <div id="aiContent" class="small"></div>
+    </div>
+  </div>
+
+  <div class="col-12 col-lg-7">
+    <div class="card-panel" id="previewPanel" style="display:none;">
+      <div class="mod-card-top">
+        <div class="mod-card-title"><i class="bi {{ module.icon }}"></i> {{ module.display_name }} Preview</div>
+        <span id="statusPill" class="status-pill">-</span>
+      </div>
+      <p class="text-muted small mb-3" id="statusMessage"></p>
+
+      <div class="field-grid mb-2">
+        <div class="field-box span-2">
+          <div class="field-label">GR / CN / Docket / LR Number</div>
+          <div class="field-value mono" id="pv_gr">-</div>
+        </div>
+      </div>
+
+      <div class="field-grid mb-2">
+        <div class="field-box">
+          <div class="field-label">Current {{ module.value_label }}</div>
+          <div class="field-value" id="pv_old_value">-</div>
+        </div>
+        <div class="field-box">
+          <div class="field-label">New {{ module.value_label }}</div>
+          <div class="field-value" id="pv_new_value">-</div>
+        </div>
+        <div class="field-box span-2">
+          <div class="field-label">{{ module.value_label }} Name/Label</div>
+          <div class="field-value" id="pv_value_label">-</div>
+        </div>
+      </div>
+
+      <div class="field-grid mb-2">
+        <div class="field-box">
+          <div class="field-label">Existing Remark</div>
+          <div class="field-value diff-old" id="pv_existing_remark">-</div>
+        </div>
+        <div class="field-box">
+          <div class="field-label">New Remark</div>
+          <div class="field-value diff-new" id="pv_new_remark">-</div>
+        </div>
+      </div>
+
+      <div class="field-grid mb-2">
+        <div class="field-box">
+          <div class="field-label">Change Type</div>
+          <div class="field-value" id="pv_change_type">-</div>
+        </div>
+      </div>
+
+      <div id="billingSuggestionBox" class="unverified-warning-banner d-none" style="border-color:#8fd19e;background:#f0faf2;color:#1c5c2e;"></div>
+
+      <div class="field-grid">
+        <div class="field-box span-2">
+          <div class="field-label">Final Remark (editable)</div>
+          <textarea class="field-editable" id="pv_final_remark" rows="2"></textarea>
+        </div>
+      </div>
+
+      <div class="d-flex flex-wrap gap-2 mt-3">
+        <button class="btn btn-outline-secondary btn-sm" id="cancelBtn"><i class="bi bi-x-circle"></i> Cancel</button>
+        <button class="btn btn-outline-secondary btn-sm" id="refreshBtn"><i class="bi bi-arrow-clockwise"></i> Refresh Latest Data</button>
+        <button class="btn btn-success btn-sm ms-auto" id="confirmBtn" data-bs-toggle="modal" data-bs-target="#confirmModal"><i class="bi bi-save"></i> Confirm &amp; Modify</button>
+      </div>
+      {% if not save_api_ready %}
+      <div class="alert alert-warning mt-3 mb-0 py-2 small">
+        Save API is not configured yet. Confirming will run Preview/Dry-Run only - no data will be modified.
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- Confirmation modal -->
+<div class="modal fade" id="confirmModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Confirm Single CN Modification</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p class="mono mb-2" id="modal_gr"></p>
+        <p class="mb-1"><strong>{{ module.value_label }} change:</strong> <span id="modal_value_change"></span></p>
+        <p class="mb-1"><strong>Remark change:</strong></p>
+        <div class="field-box mb-2"><div class="field-label">Old</div><div class="field-value diff-old" id="modal_old_remark"></div></div>
+        <div class="field-box"><div class="field-label">Final</div><div class="field-value diff-new" id="modal_final_remark"></div></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-success" id="modalConfirmBtn">Confirm Modification</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+window.MODULE_KEY = "{{ module.key }}";
+window.MODULE_KIND = "{{ module.kind }}";
+window.SAVE_API_READY = {{ 'true' if save_api_ready else 'false' }};
+</script>
+<script src="{{ url_for('static', filename='js/module_single.js') }}"></script>
+{% endblock %}

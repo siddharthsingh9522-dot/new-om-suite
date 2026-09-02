@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TBB Party — Auto Mail Web App</title>
+<link rel="stylesheet" href="/static/auth.css">
+<style>
+  body{font-family:Inter,Segoe UI,sans-serif;background:#f6f4ee;margin:0;color:#12181f;}
+  .wrap{max-width:640px;margin:60px auto;background:#fff;border:1px solid #e2ded2;border-radius:8px;padding:32px;}
+  h1{font-size:22px;margin:0 0 6px;}
+  p.sub{color:#666;font-size:13.5px;margin:0 0 26px;}
+  label{display:block;font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:#666;margin-bottom:6px;margin-top:18px;}
+  input[type=file]{width:100%;padding:10px;border:1.5px solid #e2ded2;border-radius:5px;background:#fbfaf6;}
+  .hint{font-size:12px;color:#999;margin-top:4px;}
+  button{margin-top:26px;width:100%;padding:12px;background:#12181f;color:#fff;border:none;border-radius:5px;
+         font-size:14px;letter-spacing:.03em;cursor:pointer;}
+  button:hover{background:#000;}
+  .cache-note{margin-top:14px;font-size:12.5px;background:#e7f2ea;color:#2f6b4f;padding:10px 12px;border-radius:5px;}
+</style>
+</head>
+<body>
+<div class="navbar">
+  <div>TBB Mail</div>
+  <div>
+    <a href="/">Dashboard</a>
+    {% if me and me.role == 'admin' %}<a href="/admin/users">Users</a>{% endif %}
+    <form method="post" action="/logout" style="display:inline;">
+      <button class="link" type="submit">Logout</button>
+    </form>
+  </div>
+</div>
+<div class="wrap">
+  <h1>TBB Party — Branch Auto Mail</h1>
+  <p class="sub">Report sheet upload karein — system branch code se match karke har branch ko mail draft banayega.</p>
+
+  <form action="/upload" method="post" enctype="multipart/form-data">
+    <label>Report / TBB Sheet (zaroori)</label>
+    <input type="file" name="report_file" accept=".xls,.xlsx" required>
+    <div class="hint">Isme Branch Code, CN/GR No, Party Code, Party Name jaise columns hone chahiye.</div>
+
+    <label>Directory Sheet ({{ 'optional — pehle wali cached hai' if has_cached_directory else 'zaroori (pehli baar)' }})</label>
+    <input type="file" name="directory_file" accept=".xls,.xlsx" {{ '' if has_cached_directory else 'required' }}>
+    <div class="hint">Branch code → email match karne ke liye. Ek baar upload karne ke baad ye cache ho jayegi.</div>
+
+    {% if has_cached_directory %}
+    <div class="cache-note">Pehle se ek Directory file cached hai — nayi upload karenge to wo replace ho jayegi.</div>
+    {% endif %}
+
+    <button type="submit">Sheet Padho aur Preview Dikhao</button>
+  </form>
+</div>
+</body>
+</html>

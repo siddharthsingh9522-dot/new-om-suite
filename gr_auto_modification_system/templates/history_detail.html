@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}Batch {{ batch.batch_id }} - GR Auto Modification System{% endblock %}
+{% block page_title %}Batch {{ batch.batch_id }}{% endblock %}
+
+{% block content %}
+<div class="row g-3 mb-3">
+  <div class="col-6 col-md-2"><div class="kpi-card"><div class="kpi-value">{{ batch.total_gr }}</div><div class="kpi-label">Total</div></div></div>
+  <div class="col-6 col-md-2"><div class="kpi-card"><div class="kpi-value">{{ batch.success_count }}</div><div class="kpi-label">Success</div></div></div>
+  <div class="col-6 col-md-2"><div class="kpi-card"><div class="kpi-value">{{ batch.failed_count }}</div><div class="kpi-label">Failed</div></div></div>
+  <div class="col-6 col-md-2"><div class="kpi-card"><div class="kpi-value">{{ batch.skipped_count }}</div><div class="kpi-label">Skipped</div></div></div>
+  <div class="col-6 col-md-2"><div class="kpi-card"><div class="kpi-value">{{ batch.already_applied_count }}</div><div class="kpi-label">Already Applied</div></div></div>
+  <div class="col-6 col-md-2"><div class="kpi-card"><div class="kpi-value">{{ batch.status }}</div><div class="kpi-label">Status</div></div></div>
+</div>
+
+<div class="card-panel mb-3">
+  <div class="d-flex justify-content-between align-items-center mb-2">
+    <h2 class="h6 mb-0">Batch Details</h2>
+    <a class="btn btn-sm btn-outline-primary" href="{{ url_for('history.export', batch_id=batch.batch_id) }}"><i class="bi bi-download"></i> Export Full Report</a>
+  </div>
+  <table class="table table-sm">
+    <tbody>
+      <tr><th style="width:25%">Source File</th><td>{{ batch.source_filename or "-" }}</td></tr>
+      <tr><th>Common Remark</th><td class="mono">{{ batch.common_remark or "-" }}</td></tr>
+      <tr><th>Detected Party Code</th><td>{{ batch.detected_party_code or "-" }}</td></tr>
+      <tr><th>Dry Run</th><td>{{ "Yes" if batch.dry_run else "No" }}</td></tr>
+      <tr><th>Duration</th><td>{{ batch.duration_seconds() or "-" }} sec</td></tr>
+    </tbody>
+  </table>
+
+  <div class="alert alert-secondary small mb-0">
+    Original data snapshot has been stored locally for audit purposes. Automatic rollback requires a
+    compatible backend update API.
+  </div>
+</div>
+
+<div class="card-panel mb-3">
+  <h2 class="h6 mb-3">Records</h2>
+  <div class="table-responsive" style="max-height:480px;">
+    <table class="table table-sm table-sticky">
+      <thead>
+        <tr><th>#</th><th>GR/CN</th><th>Old Party</th><th>New Party</th><th>Final Remark</th><th>Status</th><th>Attempts</th><th>Error</th></tr>
+      </thead>
+      <tbody>
+        {% for item in items %}
+        <tr>
+          <td>{{ item.serial_no }}</td>
+          <td class="mono">{{ item.gr_number }}</td>
+          <td>{{ item.existing_party_code or "-" }}</td>
+          <td>{{ item.new_party_code or "-" }}</td>
+          <td class="text-truncate" style="max-width:220px;" title="{{ item.final_remark or '' }}">{{ item.final_remark or "-" }}</td>
+          <td><span class="status-pill status-{{ item.status }}">{{ item.status }}</span></td>
+          <td>{{ item.attempts }}</td>
+          <td class="text-truncate" style="max-width:200px;" title="{{ item.last_error or '' }}">{{ item.last_error or "" }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="card-panel">
+  <h2 class="h6 mb-3">Audit Trail</h2>
+  <ul class="list-group list-group-flush">
+    {% for log in logs %}
+    <li class="list-group-item small">
+      <span class="mono text-muted">{{ log.created_at.strftime("%Y-%m-%d %H:%M:%S") if log.created_at else "" }}</span>
+      &mdash; <strong>{{ log.action }}</strong> &mdash; {{ log.details }}
+    </li>
+    {% else %}
+    <li class="list-group-item small text-muted">No audit entries yet.</li>
+    {% endfor %}
+  </ul>
+</div>
+{% endblock %}

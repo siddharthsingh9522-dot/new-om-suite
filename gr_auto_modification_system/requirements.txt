@@ -1,0 +1,14 @@
+Flask==3.0.3
+Flask-SQLAlchemy==3.1.1
+Flask-WTF==1.2.1
+SQLAlchemy==2.0.31
+requests==2.32.3
+# pandas 2.1+ requires Python 3.9+. Pinned to 2.0.3, the last release that
+# supports Python 3.8, since this project must also run on 3.8 hosts.
+# If your environment is on Python 3.9+, you may instead use pandas>=2.2.2.
+pandas==2.0.3
+openpyxl==3.1.5
+python-dotenv==1.0.1
+gunicorn==22.0.0
+tenacity==8.5.0
+Werkzeug==3.0.3

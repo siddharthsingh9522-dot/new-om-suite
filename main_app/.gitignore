@@ -1,0 +1,13 @@
+.env
+*.pyc
+__pycache__/
+*.log
+
+# runtime data for every module (db, uploads, generated excel outputs,
+# captcha screenshots) — none of this should go into the repo
+data/
+!data/.gitkeep
+!data/uploads/.gitkeep
+
+.DS_Store
+*.save
