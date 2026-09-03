@@ -70,7 +70,7 @@ services:
       - key: SESSION_LIFETIME_MINUTES
         value: "480"
       - key: SAVE_API_ENABLED
-        value: "false"
+        value: "true"
       - key: SAVE_API_URL
         value: "/manual-cn/modification/{cn_no}"
       - key: SAVE_API_METHOD
