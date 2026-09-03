@@ -13,12 +13,16 @@ FROM python:3.11-slim
 # browser and chromedriver versions always match each other (avoids the
 # classic "this version of ChromeDriver only supports Chrome version X"
 # failure you get when downloading them from two different places).
+# Note: libgconf-2-4 was removed from Debian's repos years ago (it was
+# only ever needed by very old Chrome versions) — including it here
+# breaks the whole install with "unable to locate package", so it's
+# deliberately left out.
+ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y --no-install-recommends \
     chromium \
     chromium-driver \
     fonts-liberation \
     libnss3 \
-    libgconf-2-4 \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
