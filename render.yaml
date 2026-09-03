@@ -1,84 +1,43 @@
-services:
-  # ---------------------------------------------------------------------
-  # 1) Main OM Suite app — unified login + admin approval + Branch,
-  #    Customer, OM Automation (CN/GST/Party) and TBB/Bill Mail tools.
-  # ---------------------------------------------------------------------
-  - type: web
-    name: om-suite-main
-    # Docker (not the plain "python" runtime) — needed so the GST Query
-    # screen has an actual Chromium browser to drive (see main_app/Dockerfile).
-    # Render still auto-detects $PORT and everything else works exactly
-    # the same as before; this only changes *how* the image is built.
-    # NOTE: dockerfilePath/dockerContext are already relative to the repo
-    # root, so rootDir must NOT also be set to main_app here — combining
-    # both doubles the path (main_app/main_app) and breaks the build.
-    runtime: docker
-    dockerfilePath: ./main_app/Dockerfile
-    dockerContext: ./main_app
-    plan: free
-    envVars:
-      - key: FLASK_SECRET
-        generateValue: true
-      - key: SECRET_KEY
-        generateValue: true
-      # Encrypts each user's own SMTP/IMAP password + AI API key at rest —
-      # every user now enters their own Mail + AI details from the app's
-      # "My Settings" (/settings) page, not from server env vars. Do NOT
-      # change this after first deploy — changing it makes previously saved
-      # per-user credentials unreadable (users would need to re-enter them).
-      - key: CREDENTIALS_KEY
-        generateValue: true
-      # Which AI model name to call — not a secret, just a choice. Actual
-      # API keys are per-user now (see CREDENTIALS_KEY note above).
-      - key: GEMINI_MODEL
-        value: "gemini-3.1-flash-lite"
-      - key: ANTHROPIC_MODEL
-        value: "claude-sonnet-4-5"
-      # Without this, main_app falls back to a local SQLite file — which
-      # Render's free-plan disk wipes on every redeploy (all users, mail
-      # history, and settings would reset). Paste a Postgres connection
-      # string (e.g. a free Neon database — same as gr_auto below) during
-      # deploy to make it persistent.
-      - key: DATABASE_URL
-        sync: false
-      # GR Auto Modification System (service #2 below) apna alag URL/login
-      # rakhta hai — pehli baar dono services deploy karne ke baad, us
-      # service ka Render URL yahan paste karke redeploy karo, tab dashboard
-      # par uska tile active ho jayega. Khaali chhodne par tile "Link
-      # Pending" dikhayega — app crash nahi hoti.
-      - key: GR_AUTO_URL
-        sync: false
+# Plain Render "python" web services don't have a Chrome/Chromium binary,
+# which is why the GST Query screen (Selenium-driven captcha solving)
+# always showed "not available" — webdriver-manager can download a
+# matching *driver*, but not the browser itself. This Dockerfile adds
+# Chromium so that screen works. Every other tool in the suite (CN,
+# Party, Master, Branch, Customer, TBB/Bill Mail) doesn't need this and
+# would run fine on the plain "python" runtime too — this image is only
+# required for GST Query.
 
-  # ---------------------------------------------------------------------
-  # 2) GR Auto Modification System — separate app, own login/DB, left
-  #    completely untouched. Deployed as its own Render service.
-  # ---------------------------------------------------------------------
-  - type: web
-    name: gr-auto-modification-system
-    runtime: python
-    plan: free
-    rootDir: gr_auto_modification_system
-    buildCommand: "pip install -r requirements.txt"
-    startCommand: "gunicorn -w 2 -b 0.0.0.0:$PORT \"app:create_app()\""
-    envVars:
-      - key: SECRET_KEY
-        generateValue: true
-      - key: FLASK_DEBUG
-        value: "0"
-      - key: WTF_CSRF_ENABLED
-        value: "1"
-      - key: SESSION_LIFETIME_MINUTES
-        value: "480"
-      - key: SAVE_API_ENABLED
-        value: "false"
-      - key: SAVE_API_URL
-        value: "/manual-cn/modification/{cn_no}"
-      - key: SAVE_API_METHOD
-        value: "PUT"
-      - key: API_BASE_URL
-        value: "https://load.omone.in/utility-service/api"
-      - key: API_AUTH_MODE
-        value: "none"
-      # Paste your Postgres (e.g. Neon) connection string during deploy.
-      - key: DATABASE_URL
-        sync: false
+FROM python:3.11-slim
+
+# Chromium + matching driver, straight from Debian's own repo so the
+# browser and chromedriver versions always match each other (avoids the
+# classic "this version of ChromeDriver only supports Chrome version X"
+# failure you get when downloading them from two different places).
+# Note: libgconf-2-4 was removed from Debian's repos years ago (it was
+# only ever needed by very old Chrome versions) — including it here
+# breaks the whole install with "unable to locate package", so it's
+# deliberately left out.
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    chromium \
+    chromium-driver \
+    fonts-liberation \
+    libnss3 \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Tell Selenium exactly where the browser lives instead of relying on
+# webdriver-manager to guess/download one — see gst_search.py's
+# open_browser(), which reads these two env vars when present.
+ENV CHROME_BIN=/usr/bin/chromium
+ENV CHROMEDRIVER_PATH=/usr/bin/chromedriver
+
+WORKDIR /app
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY . .
+
+# Render sets $PORT at runtime; gunicorn must bind to it.
+CMD gunicorn app:app --bind 0.0.0.0:$PORT --workers 2 --threads 4 --timeout 120
