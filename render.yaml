@@ -9,11 +9,13 @@ services:
     # screen has an actual Chromium browser to drive (see main_app/Dockerfile).
     # Render still auto-detects $PORT and everything else works exactly
     # the same as before; this only changes *how* the image is built.
+    # NOTE: dockerfilePath/dockerContext are already relative to the repo
+    # root, so rootDir must NOT also be set to main_app here — combining
+    # both doubles the path (main_app/main_app) and breaks the build.
     runtime: docker
     dockerfilePath: ./main_app/Dockerfile
     dockerContext: ./main_app
     plan: free
-    rootDir: main_app
     envVars:
       - key: FLASK_SECRET
         generateValue: true
