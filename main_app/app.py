@@ -1185,6 +1185,7 @@ def api_tbb_send_all():
     ops = db.get_operations(user_id, "tbb")
     payload = request.get_json(silent=True) or {}
     recipients_map = payload.get("recipients", {})  # {branch_code: {"cc": "...", "bcc": "..."}}
+    via = payload.get("via", "")
     results = []
     uname = current_user()["username"]
     for code, branch in branches.items():
@@ -1203,6 +1204,15 @@ def api_tbb_send_all():
         cc = row_recipients.get("cc", "")
         bcc = row_recipients.get("bcc", "")
         db.mark_sending(user_id, "tbb", code)
+        if via == "thunderbird":
+            try:
+                job_id = tbb_enqueue_bridge_send(user_id, code, branch, email, cc, bcc)
+                results.append({"code": code, "status": "queued_thunderbird", "job_id": job_id})
+            except Exception as e:
+                branch["send_status"] = "failed"
+                db.mark_failed(user_id, "tbb", code, str(e))
+                results.append({"code": code, "status": "failed", "detail": str(e)})
+            continue
         try:
             tbb_send_email(branch, email, cc, bcc)
             branch["send_status"] = "sent"
@@ -1429,6 +1439,7 @@ def api_bill_send_all():
     ops = db.get_operations(user_id, "bill")
     payload = request.get_json(silent=True) or {}
     recipients_map = payload.get("recipients", {})
+    via = payload.get("via", "")
     results = []
     uname = current_user()["username"]
     for code, branch in branches.items():
@@ -1447,6 +1458,16 @@ def api_bill_send_all():
         cc = row_recipients.get("cc", "")
         bcc = row_recipients.get("bcc", "")
         db.mark_sending(user_id, "bill", code)
+        if via == "thunderbird":
+            try:
+                branch["email"] = email
+                job_id = bill_enqueue_bridge_send(user_id, code, branch, email, cc, bcc)
+                results.append({"code": code, "status": "queued_thunderbird", "job_id": job_id})
+            except Exception as e:
+                branch["send_status"] = "failed"
+                db.mark_failed(user_id, "bill", code, str(e))
+                results.append({"code": code, "status": "failed", "detail": str(e)})
+            continue
         try:
             bill_send_email(branch, email, cc, bcc)
             branch["send_status"] = "sent"
