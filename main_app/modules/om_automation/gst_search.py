@@ -52,6 +52,19 @@ def open_browser():
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
     options.add_argument("--window-size=1366,900")
+    # services.gst.gov.in (like most government/anti-bot-protected sites)
+    # blocks requests that look like an automated/headless browser — the
+    # default headless Chrome identifies itself as "HeadlessChrome" in a
+    # few places, which is an easy, common signal for a site to detect and
+    # block. These flags make it look like an ordinary desktop Chrome
+    # instead, which is what actually got the portal to load in testing.
+    options.add_argument(
+        "user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+        "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+    )
+    options.add_argument("--disable-blink-features=AutomationControlled")
+    options.add_experimental_option("excludeSwitches", ["enable-automation"])
+    options.add_experimental_option("useAutomationExtension", False)
 
     chrome_bin = os.environ.get("CHROME_BIN")
     chromedriver_path = os.environ.get("CHROMEDRIVER_PATH")
@@ -81,14 +94,41 @@ def open_browser():
             )
     except Exception as e:
         raise RuntimeError(f"Could not start Chrome for GST search: {type(e).__name__}: {e}")
+
+    # Removes the "navigator.webdriver = true" flag that JavaScript on the
+    # page can check for — another common, easy way sites detect and block
+    # automated browsers even after the user-agent is spoofed above.
+    try:
+        driver.execute_cdp_cmd("Page.addScriptToEvaluateOnNewDocument", {
+            "source": "Object.defineProperty(navigator, 'webdriver', {get: () => undefined})"
+        })
+    except Exception:
+        pass  # best-effort — doesn't block the flow if unsupported
+
     return driver
 
 
 def go_to_search_page(driver):
     driver.get(GST_URL)
-    WebDriverWait(driver, 30).until(
-        EC.presence_of_element_located((By.ID, GST_BOX_ID))
-    )
+    try:
+        WebDriverWait(driver, 30).until(
+            EC.presence_of_element_located((By.ID, GST_BOX_ID))
+        )
+    except Exception:
+        # Surface *what actually loaded* instead of a bare TimeoutException
+        # with no context — this is the difference between "the portal
+        # blocked us" (title/text will show a block/challenge page) and
+        # "our selector is wrong" (title/text will look like a normal GST
+        # portal page, just without the expected element id).
+        title = (driver.title or "")[:150]
+        try:
+            snippet = driver.find_element(By.TAG_NAME, "body").text[:300]
+        except Exception:
+            snippet = "(could not read page body)"
+        raise RuntimeError(
+            f"GST portal didn't load the search box in time. "
+            f"Page title was: {title!r}. Page text started with: {snippet!r}"
+        )
 
 
 def fill_gst(driver, gst):
