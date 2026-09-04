@@ -58,19 +58,29 @@ def open_browser():
     if chrome_bin:
         options.binary_location = chrome_bin
 
-    if chromedriver_path:
-        # Docker image already ships a matching chromium + chromedriver pair
-        # (see Dockerfile) — use it directly instead of webdriver-manager,
-        # which would otherwise try to download a driver at runtime (slow,
-        # and can pick a version that doesn't match the installed browser).
-        driver = webdriver.Chrome(service=Service(chromedriver_path), options=options)
-    else:
-        # Local/dev fallback: no CHROMEDRIVER_PATH set, so let
-        # webdriver-manager figure out and download a matching driver.
-        driver = webdriver.Chrome(
-            service=Service(ChromeDriverManager().install()),
-            options=options,
-        )
+    # Any failure launching Chrome (missing binary, driver/browser version
+    # mismatch, sandbox permission issue, etc.) used to escape as a raw
+    # Selenium exception — Flask then returned its default HTML error page
+    # instead of JSON, which is why the browser showed "Unexpected token
+    # '<' ... is not valid JSON" instead of a real message. Wrapping it in
+    # RuntimeError here means the existing `except RuntimeError` in the
+    # /om/api/gst/... routes catches it and returns a proper JSON error.
+    try:
+        if chromedriver_path:
+            # Docker image already ships a matching chromium + chromedriver
+            # pair (see Dockerfile) — use it directly instead of
+            # webdriver-manager, which would otherwise try to download a
+            # driver at runtime (slow, and can pick a mismatched version).
+            driver = webdriver.Chrome(service=Service(chromedriver_path), options=options)
+        else:
+            # Local/dev fallback: no CHROMEDRIVER_PATH set, so let
+            # webdriver-manager figure out and download a matching driver.
+            driver = webdriver.Chrome(
+                service=Service(ChromeDriverManager().install()),
+                options=options,
+            )
+    except Exception as e:
+        raise RuntimeError(f"Could not start Chrome for GST search: {type(e).__name__}: {e}")
     return driver
 
 
