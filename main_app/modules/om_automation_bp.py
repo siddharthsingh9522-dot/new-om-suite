@@ -43,6 +43,23 @@ PAGE_META = {
 }
 
 
+@om_bp.errorhandler(Exception)
+def _om_json_error(e):
+    """Safety net: any /om/api/... route that crashes with something other
+    than the RuntimeError already handled locally used to fall through to
+    Flask's default HTML error page — which broke every fetch() call on
+    this screen with "Unexpected token '<' ... is not valid JSON", since
+    the frontend always expects JSON back. Non-API page routes (rendering
+    a template) still get Flask's normal error handling; this only
+    intercepts the /om/api/ JSON endpoints.
+    """
+    from werkzeug.exceptions import HTTPException
+    if request.path.startswith("/om/api/"):
+        status = e.code if isinstance(e, HTTPException) else 500
+        return jsonify({"success": False, "message": f"{type(e).__name__}: {e}"}), status
+    raise e
+
+
 def _allowed_file(filename):
     ext = os.path.splitext(filename)[1].lower()
     return ext in ALLOWED_EXTENSIONS
