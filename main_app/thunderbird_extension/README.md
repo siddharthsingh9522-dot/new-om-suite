@@ -64,3 +64,18 @@ extension's own Flask backend (`/api/bridge/*` in `app.py`). Changes:
    your login username exactly (case-insensitive, but no typos/spaces).
 4. Options → Bridge enabled: ON. Auto-send stays OFF until you've verified matches look right.
 5. Click "Test Connection" — read the error text if it's red, it now tells you exactly what's wrong.
+
+## v1.1.1 — real send bug fixed
+Found via the new "Job failed" desktop notification (the diagnostics added in v1.1.0 are what
+surfaced this — previously this failure happened silently with no visible error at all):
+
+**`compose.addAttachment` was called with the wrong shape.** The code built the attachment object
+as `{ name, url: <data-url>, type }`. Current Thunderbird only accepts either `{ file: File }`
+(a real File object) or `{ id: <number> }` (to reference/replace an existing attachment) — passing
+`url`/`type` fails schema validation with exactly the error you saw: *"Value must either: not
+contain the unexpected properties [type, url], or contain the required 'id' property."*
+Every single auto-send with an attachment was failing at this line, unconditionally.
+
+Fixed: the attachment bytes fetched from the backend are now wrapped in a real `File` object and
+passed as `{ file }`, matching Thunderbird's current `compose.addAttachment` schema. Also removed
+the now-unused `blobToDataUrl` helper.

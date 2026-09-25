@@ -251,15 +251,6 @@ async function reportError(jobId, error) {
   try { await api(`/api/bridge/job/${jobId}/result`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "error", error: String(error) }) }); } catch (_) {}
 }
 
-async function blobToDataUrl(blob) {
-  const buf = await blob.arrayBuffer();
-  let binary = "";
-  const bytes = new Uint8Array(buf);
-  const chunk = 0x8000;
-  for (let i = 0; i < bytes.length; i += chunk) binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
-  return `data:${blob.type || "application/octet-stream"};base64,${btoa(binary)}`;
-}
-
 async function findIdentity(email) {
   if (!email) return undefined;
   const target = norm(email);
@@ -277,11 +268,22 @@ async function sendJob(job) {
   const s = await settings();
   if (!s.autoSend) throw new Error("Auto-send disabled in Thunderbird extension. Enable it in extension Options after reviewing matches.");
   const attachment = p.attachment;
-  let attachmentData;
+  // Thunderbird's compose.addAttachment API needs a real File object — an
+  // object with {name, url, type} (what this used to send) fails schema
+  // validation with "Type error for parameter attachment... must contain
+  // the required 'id' property" because {url, type} isn't a valid shape
+  // for current Thunderbird versions. Build an actual File from the
+  // fetched bytes instead.
+  let attachmentFile;
   if (attachment?.url) {
     const rr = await fetch(new URL(attachment.url, s.apiBase), { headers: { "X-Thunderbird-Token": s.token, "X-Thunderbird-User": s.username } });
     if (!rr.ok) throw new Error(`Attachment HTTP ${rr.status}`);
-    attachmentData = await blobToDataUrl(await rr.blob());
+    const blob = await rr.blob();
+    attachmentFile = new File(
+      [blob],
+      attachment.name || "Auto_Bill.csv",
+      { type: attachment.content_type || blob.type || "text/csv" }
+    );
   }
   const identityId = await findIdentity(p.identity_email);
   const tab = await messenger.compose.beginNew(undefined, {
@@ -291,8 +293,8 @@ async function sendJob(job) {
     deliveryFormat: "both",
     ...(identityId ? { identityId } : {})
   });
-  if (attachmentData) {
-    await messenger.compose.addAttachment(tab.id, { name: attachment.name || "Auto_Bill.csv", url: attachmentData, type: attachment.content_type || "text/csv" });
+  if (attachmentFile) {
+    await messenger.compose.addAttachment(tab.id, { file: attachmentFile });
   }
   const sent = await messenger.compose.sendMessage(tab.id, { mode: "sendNow" });
   return {
