@@ -75,6 +75,18 @@ def get_conn():
     return conn
 
 
+# Prints once at startup so it's visible in Render's Logs tab — the
+# fastest way to confirm whether DATABASE_URL was actually picked up
+# (Postgres, persists) or the app silently fell back to the local
+# SQLite file (wiped on every redeploy on Render's free plan).
+if USE_POSTGRES:
+    _masked = DATABASE_URL.split("@")[-1] if "@" in DATABASE_URL else "(set)"
+    print(f"[db] Using POSTGRES — data will persist across redeploys. Host: {_masked}")
+else:
+    print("[db] DATABASE_URL not set — using local SQLite file. "
+          "On Render's free plan this resets on every redeploy.")
+
+
 def init_db():
     pk = "SERIAL PRIMARY KEY" if USE_POSTGRES else "INTEGER PRIMARY KEY AUTOINCREMENT"
     if not USE_POSTGRES:

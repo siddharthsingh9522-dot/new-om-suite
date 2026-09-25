@@ -368,15 +368,15 @@ Sirf JSON return karo, kuch aur text nahi:
 def tbb_build_subject(branch):
     """Naya format: 'PROVIDE THE TBB CODE & MODIFY THE SAME............. GR:-<pehla>/<aakhri> M/S- <PARTY NAME>'"""
     grs = branch.get("grs", [])
-    cns = [str(g.get("cn", "")).strip() for g in grs if str(g.get("cn", "")).strip()]
+    cns = [str(gr.get("cn", "")).strip() for gr in grs if str(gr.get("cn", "")).strip()]
     if len(cns) >= 2:
         gr_part = f"{cns[0]}/{cns[-1]}"
     else:
         gr_part = cns[0] if cns else ""
 
     party_names = []
-    for g in grs:
-        pn = str(g.get("party_name", "")).strip()
+    for gr in grs:
+        pn = str(gr.get("party_name", "")).strip()
         if pn and pn.lower() != "nan" and pn not in party_names:
             party_names.append(pn)
     party_part = " & ".join(party_names)
@@ -388,10 +388,10 @@ def tbb_build_body(branch):
     """Plain-text fallback (jo HTML na dekh paye unke liye) — tab-separated table."""
     body = TBB_EMAIL_TEMPLATE_INTRO
     body += "B.Code \tBRANCH \tCN_NO \tPARTY CODE \tPARTY NAME\n"
-    for g in branch["grs"]:
+    for gr in branch["grs"]:
         body += (
             f"{branch['branch_code']} \t{branch.get('branch_name_sheet','')} \t"
-            f"{g['cn']} \t{g['party_code']} \t*{g['party_name']}*\n"
+            f"{gr['cn']} \t{gr['party_code']} \t*{gr['party_name']}*\n"
         )
     body += "\nRegards,\n" + (g.mail_cfg.get("smtp_from_name") or "")
     return body
@@ -415,7 +415,7 @@ def tbb_build_body_html(branch):
     header_row = "".join(f'<th style="{th_style}">{_html_escape(h)}</th>' for h in headers)
 
     body_rows = []
-    for i, g in enumerate(branch["grs"]):
+    for i, gr in enumerate(branch["grs"]):
         bg = "#F2F2F2" if i % 2 == 0 else "#FFFFFF"
         row_td = f'style="{td_style}background:{bg};"'
         party_td = f'style="{td_style}background:{bg};color:#C00000;font-weight:bold;"'
@@ -423,9 +423,9 @@ def tbb_build_body_html(branch):
             f"<tr>"
             f'<td {row_td}>{_html_escape(branch["branch_code"])}</td>'
             f'<td {row_td}>{_html_escape(branch.get("branch_name_sheet",""))}</td>'
-            f'<td {row_td}>{_html_escape(g["cn"])}</td>'
-            f'<td {row_td}>{_html_escape(g["party_code"])}</td>'
-            f'<td {party_td}>{_html_escape(g["party_name"])}</td>'
+            f'<td {row_td}>{_html_escape(gr["cn"])}</td>'
+            f'<td {row_td}>{_html_escape(gr["party_code"])}</td>'
+            f'<td {party_td}>{_html_escape(gr["party_name"])}</td>'
             f"</tr>"
         )
 
@@ -448,10 +448,10 @@ def tbb_build_attachment_xlsx(branch):
     ws.title = "TBB Details"
     headers = ["Branch Code", "Branch Name", "Region", "CN No", "Party Code", "Party Name", "CN Date"]
     ws.append(headers)
-    for g in branch["grs"]:
+    for gr in branch["grs"]:
         ws.append([
             branch["branch_code"], branch.get("branch_name_sheet", ""), branch.get("region", ""),
-            g["cn"], g["party_code"], g["party_name"], g["cn_date"],
+            gr["cn"], gr["party_code"], gr["party_name"], gr["cn_date"],
         ])
     for col_idx, header in enumerate(headers, start=1):
         max_len = max([len(str(header))] + [len(str(ws.cell(row=r, column=col_idx).value or "")) for r in range(2, ws.max_row + 1)])
@@ -459,6 +459,19 @@ def tbb_build_attachment_xlsx(branch):
     buf = io.BytesIO()
     wb.save(buf)
     return buf.getvalue()
+
+
+def tbb_build_attachment_csv(branch):
+    """Thunderbird bridge ke liye CSV version (xlsx ki jagah — extension isi ko fetch karta hai)."""
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    writer.writerow(["Branch Code", "Branch Name", "Region", "CN No", "Party Code", "Party Name", "CN Date"])
+    for gr in branch["grs"]:
+        writer.writerow([
+            branch["branch_code"], branch.get("branch_name_sheet", ""), branch.get("region", ""),
+            gr["cn"], gr["party_code"], gr["party_name"], gr["cn_date"],
+        ])
+    return buf.getvalue().encode("utf-8")
 
 
 def _apply_recipients(msg, to_value, cc_value="", bcc_value=""):
@@ -1061,6 +1074,52 @@ def api_tbb_ai_fix(code):
     })
 
 
+def tbb_enqueue_bridge_send(user_id, code, branch, email, cc="", bcc=""):
+    """SMTP se seedha bhejne ki jagah — Thunderbird extension ke liye ek 'send' job queue
+    karta hai. Extension apne agle poll cycle (~5 sec) mein isko apne configured
+    company account/identity se bhej degi, kyunki server (Render) khud company ka
+    SMTP nahi pahunch sakta."""
+    identity_email = (g.mail_cfg.get("smtp_from_email") or g.mail_cfg.get("smtp_user") or "").strip()
+    job_payload = {
+        "to": parse_recipients(email),
+        "cc": parse_recipients(cc) if cc else [],
+        "bcc": parse_recipients(bcc) if bcc else [],
+        "subject": tbb_build_subject(branch),
+        "plain_text": tbb_build_body(branch),
+        "html": tbb_build_body_html(branch),
+        "identity_email": identity_email,
+        "attachment": {
+            "url": url_for("api_bridge_attachment", module="tbb", code=code),
+            "name": f"TBB_{code}.csv",
+            "content_type": "text/csv",
+        },
+        "_module": "tbb",
+        "_code": code,
+    }
+    return db.enqueue_bridge_job(user_id, "send", job_payload)
+
+
+def bill_enqueue_bridge_send(user_id, code, branch, email, cc="", bcc=""):
+    identity_email = (g.mail_cfg.get("smtp_from_email") or g.mail_cfg.get("smtp_user") or "").strip()
+    job_payload = {
+        "to": parse_recipients(email),
+        "cc": parse_recipients(cc) if cc else [],
+        "bcc": parse_recipients(bcc) if bcc else [],
+        "subject": bill_parser.build_subject(branch),
+        "plain_text": bill_parser.build_email_text(branch),
+        "html": bill_parser.build_email_html(branch),
+        "identity_email": identity_email,
+        "attachment": {
+            "url": url_for("api_bridge_attachment", module="bill", code=code),
+            "name": f"Bill_{code}.csv",
+            "content_type": "text/csv",
+        },
+        "_module": "bill",
+        "_code": code,
+    }
+    return db.enqueue_bridge_job(user_id, "send", job_payload)
+
+
 @app.route("/api/tbb/send/<code>", methods=["POST"])
 @login_required
 def api_tbb_send(code):
@@ -1079,6 +1138,21 @@ def api_tbb_send(code):
         return jsonify({"status": "error", "detail": "Email address missing"}), 400
     uname = current_user()["username"]
     db.mark_sending(user_id, "tbb", code)
+
+    if payload.get("via") == "thunderbird":
+        try:
+            job_id = tbb_enqueue_bridge_send(user_id, code, branch, email, payload.get("cc", ""), payload.get("bcc", ""))
+            return jsonify({
+                "status": "queued_thunderbird",
+                "job_id": job_id,
+                "detail": "Thunderbird extension agle poll cycle (~5 second) mein ye mail aapke company account se bhej degi.",
+            })
+        except Exception as e:
+            branch["send_status"] = "failed"
+            db.save_workflow_data(user_id, "tbb", branches)
+            db.mark_failed(user_id, "tbb", code, str(e))
+            return jsonify({"status": "error", "detail": str(e)}), 500
+
     try:
         result_send = tbb_send_email(branch, email, payload.get("cc", ""), payload.get("bcc", ""))
         branch["send_status"] = "sent"
@@ -1111,6 +1185,7 @@ def api_tbb_send_all():
     ops = db.get_operations(user_id, "tbb")
     payload = request.get_json(silent=True) or {}
     recipients_map = payload.get("recipients", {})  # {branch_code: {"cc": "...", "bcc": "..."}}
+    via = payload.get("via", "")
     results = []
     uname = current_user()["username"]
     for code, branch in branches.items():
@@ -1129,6 +1204,15 @@ def api_tbb_send_all():
         cc = row_recipients.get("cc", "")
         bcc = row_recipients.get("bcc", "")
         db.mark_sending(user_id, "tbb", code)
+        if via == "thunderbird":
+            try:
+                job_id = tbb_enqueue_bridge_send(user_id, code, branch, email, cc, bcc)
+                results.append({"code": code, "status": "queued_thunderbird", "job_id": job_id})
+            except Exception as e:
+                branch["send_status"] = "failed"
+                db.mark_failed(user_id, "tbb", code, str(e))
+                results.append({"code": code, "status": "failed", "detail": str(e)})
+            continue
         try:
             tbb_send_email(branch, email, cc, bcc)
             branch["send_status"] = "sent"
@@ -1314,6 +1398,23 @@ def api_bill_send(code):
         return jsonify({"status": "error", "detail": f"Invalid email address: {email}"}), 400
     uname = current_user()["username"]
     db.mark_sending(user_id, "bill", code)
+
+    if payload.get("via") == "thunderbird":
+        try:
+            branch["email"] = email
+            job_id = bill_enqueue_bridge_send(user_id, code, branch, email, payload.get("cc", ""), payload.get("bcc", ""))
+            db.save_workflow_data(user_id, "bill", branches)
+            return jsonify({
+                "status": "queued_thunderbird",
+                "job_id": job_id,
+                "detail": "Thunderbird extension agle poll cycle (~5 second) mein ye mail aapke company account se bhej degi.",
+            })
+        except Exception as e:
+            branch["send_status"] = "failed"
+            db.save_workflow_data(user_id, "bill", branches)
+            db.mark_failed(user_id, "bill", code, str(e))
+            return jsonify({"status": "error", "detail": str(e)}), 500
+
     try:
         branch["email"] = email
         result_send = bill_send_email(branch, email, payload.get("cc", ""), payload.get("bcc", ""))
@@ -1338,6 +1439,7 @@ def api_bill_send_all():
     ops = db.get_operations(user_id, "bill")
     payload = request.get_json(silent=True) or {}
     recipients_map = payload.get("recipients", {})
+    via = payload.get("via", "")
     results = []
     uname = current_user()["username"]
     for code, branch in branches.items():
@@ -1356,6 +1458,16 @@ def api_bill_send_all():
         cc = row_recipients.get("cc", "")
         bcc = row_recipients.get("bcc", "")
         db.mark_sending(user_id, "bill", code)
+        if via == "thunderbird":
+            try:
+                branch["email"] = email
+                job_id = bill_enqueue_bridge_send(user_id, code, branch, email, cc, bcc)
+                results.append({"code": code, "status": "queued_thunderbird", "job_id": job_id})
+            except Exception as e:
+                branch["send_status"] = "failed"
+                db.mark_failed(user_id, "bill", code, str(e))
+                results.append({"code": code, "status": "failed", "detail": str(e)})
+            continue
         try:
             bill_send_email(branch, email, cc, bcc)
             branch["send_status"] = "sent"
@@ -1437,10 +1549,33 @@ def api_bridge_job_result(job_id):
     if not user:
         return jsonify({"error": "unauthorized"}), 401
     payload = request.get_json(silent=True) or {}
+    job = db.get_bridge_job(job_id, user["id"])
+    raw_payload = (job or {}).get("payload") or {}
+    job_payload = json.loads(raw_payload) if isinstance(raw_payload, str) else raw_payload
+    module = job_payload.get("_module")
+    code = job_payload.get("_code")
     if payload.get("status") == "error":
         db.store_bridge_job_result(job_id, user["id"], result=None, status="error", error=payload.get("error", ""))
+        if module in ("tbb", "bill") and code:
+            log_file = TBB_LOG_FILE if module == "tbb" else BILL_LOG_FILE
+            branches = db.get_workflow_data(user["id"], module)
+            branch = branches.get(code) or {}
+            db.mark_failed(user["id"], module, code, payload.get("error", ""))
+            log_send(log_file, code, branch.get("branch_name_sheet", ""), job_payload.get("to", [""])[0] if job_payload.get("to") else "",
+                      "failed", payload.get("error", ""), username=user["username"])
     else:
         db.store_bridge_job_result(job_id, user["id"], result=payload.get("result"), status="done")
+        if module in ("tbb", "bill") and code:
+            log_file = TBB_LOG_FILE if module == "tbb" else BILL_LOG_FILE
+            branches = db.get_workflow_data(user["id"], module)
+            branch = branches.get(code)
+            if branch:
+                branch["send_status"] = "sent"
+                db.save_workflow_data(user["id"], module, branches)
+            db.mark_sent(user["id"], module, code)
+            to_addr = job_payload.get("to", [""])[0] if job_payload.get("to") else ""
+            log_send(log_file, code, (branch or {}).get("branch_name_sheet", ""), to_addr,
+                      "sent_via_thunderbird", "Sent locally via user's Thunderbird account", username=user["username"])
     return jsonify({"ok": True})
 
 

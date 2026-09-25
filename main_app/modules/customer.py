@@ -92,7 +92,11 @@ def search_customer(session, cname="", ccode="", lcode="", blcode="", mcode="", 
 def search_with_retry(session, code, job=None):
     try:
         rows, no_data_found = search_customer(session, blcode=code)
-    except requests.RequestException:
+    except requests.RequestException as e:
+        # Pehle yahan error silently swallow hokar khaali result ban jaata
+        # tha — ab print hoga taaki Render Logs mein asli wajah (timeout,
+        # connection refused, DNS fail, etc.) dikhe.
+        print(f"[customer] search_with_retry({code}) failed: {type(e).__name__}: {e}")
         rows, no_data_found = [], False
 
     if rows or no_data_found:
@@ -105,7 +109,8 @@ def search_with_retry(session, code, job=None):
 
     try:
         rows, _ = search_customer(session, blcode=code)
-    except requests.RequestException:
+    except requests.RequestException as e:
+        print(f"[customer] search_with_retry({code}) retry failed: {type(e).__name__}: {e}")
         rows = []
     return rows
 

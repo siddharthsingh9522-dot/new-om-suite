@@ -86,7 +86,12 @@ def fetch_branch(session, code):
                             "GST_NO": cols[5],
                         }, None)
             return (None, "No data returned")
-        except Exception:
+        except Exception as e:
+            # Pehle yahan error silently swallow ho raha tha (sirf "continue"),
+            # isliye Render logs mein kabhi pata nahi chalta tha ki asli
+            # wajah kya hai — timeout, DNS fail, connection refused, ya kuch
+            # aur. Ab print hoga taaki Render ke Logs tab mein dikhe.
+            print(f"[branch] fetch_branch({code}) attempt {attempt} failed: {type(e).__name__}: {e}")
             time.sleep(2)
             continue
 

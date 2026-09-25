@@ -4,22 +4,141 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>TBB Party — Auto Mail Web App</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/static/auth.css">
 <style>
-  body{font-family:Inter,Segoe UI,sans-serif;background:#f6f4ee;margin:0;color:#12181f;}
-  .wrap{max-width:640px;margin:60px auto;background:#fff;border:1px solid #e2ded2;border-radius:8px;padding:32px;}
-  h1{font-size:22px;margin:0 0 6px;}
-  p.sub{color:#666;font-size:13.5px;margin:0 0 26px;}
-  label{display:block;font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:#666;margin-bottom:6px;margin-top:18px;}
-  input[type=file]{width:100%;padding:10px;border:1.5px solid #e2ded2;border-radius:5px;background:#fbfaf6;}
-  .hint{font-size:12px;color:#999;margin-top:4px;}
-  button{margin-top:26px;width:100%;padding:12px;background:#12181f;color:#fff;border:none;border-radius:5px;
-         font-size:14px;letter-spacing:.03em;cursor:pointer;}
-  button:hover{background:#000;}
-  .cache-note{margin-top:14px;font-size:12.5px;background:#e7f2ea;color:#2f6b4f;padding:10px 12px;border-radius:5px;}
+:root{
+  --bg:#07111f; --panel:#0d1a2b; --panel2:#101f33; --line:#20334d;
+  --text:#edf5ff; --muted:#8ea4bf; --accent:#4f9cff; --accent2:#7c5cff;
+  --good:#32d583; --warn:#fdb022; --danger:#ff6b6b;
+  --shadow:0 18px 55px rgba(0,0,0,.35); --radius:18px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{background:var(--bg)}
+body{
+  min-height:100vh; color:var(--text);
+  font-family:'Inter',system-ui,-apple-system,sans-serif;
+  background: linear-gradient(-45deg, #0877EE, #005BD4, #0a2540, #0877EE);
+  background-size: 400% 400%;
+  animation: gradientBG 15s ease infinite;
+  position: relative;
+  overflow-x:hidden;
+  display:flex;
+  flex-direction:column;
+}
+@keyframes gradientBG {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* Floating Particles */
+.particles {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  z-index: 0;
+  pointer-events: none;
+}
+.particles li {
+  position: absolute;
+  display: block;
+  list-style: none;
+  width: 20px;
+  height: 20px;
+  background: rgba(255, 255, 255, 0.1);
+  animation: floatUp 25s linear infinite;
+  bottom: -150px;
+  border-radius: 4px;
+}
+.particles li:nth-child(1) { left: 25%; width: 80px; height: 80px; animation-delay: 0s; }
+.particles li:nth-child(2) { left: 10%; width: 30px; height: 30px; animation-delay: 2s; animation-duration: 12s; border-radius: 50%; }
+.particles li:nth-child(3) { left: 70%; width: 20px; height: 20px; animation-delay: 4s; }
+.particles li:nth-child(4) { left: 40%; width: 60px; height: 60px; animation-delay: 0s; animation-duration: 18s; border-radius: 50%; }
+.particles li:nth-child(5) { left: 65%; width: 40px; height: 40px; animation-delay: 0s; }
+.particles li:nth-child(6) { left: 75%; width: 110px; height: 110px; animation-delay: 3s; }
+
+@keyframes floatUp {
+  0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(-1000px) rotate(720deg); opacity: 0; }
+}
+
+.navbar{
+  position:sticky;top:0;z-index:10;display:flex;justify-content:space-between;gap:18px;
+  align-items:center;padding:16px 28px;border-bottom:1px solid rgba(255,255,255,.08);
+  background:rgba(7,17,31,.78);backdrop-filter:blur(18px);
+}
+.navbar>div:first-child{font-weight:800;letter-spacing:.2px;font-size:15px;color:#fff;}
+.navbar>div:last-child{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.navbar a,.navbar button.link{
+  color:#bcd0e8;text-decoration:none;background:transparent;border:0;padding:8px 10px;
+  border-radius:10px;font:600 12px inherit;cursor:pointer
+}
+.navbar a:hover,.navbar button.link:hover{color:#fff;background:rgba(255,255,255,.06)}
+
+.wrap{
+  position:relative; z-index:1;
+  max-width:640px!important;margin:40px auto!important;padding:34px!important;width:calc(100% - 32px);
+  background:linear-gradient(180deg,rgba(16,31,51,.96),rgba(10,22,37,.96))!important;
+  border:1px solid var(--line)!important;border-radius:var(--radius)!important;
+  color:var(--text)!important;box-shadow:var(--shadow)!important;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+h1{font-size:28px!important;margin:0 0 8px!important;letter-spacing:-.5px;color:#fff;}
+p.sub{color:var(--muted)!important;font-size:13.5px!important;margin:0 0 26px!important;line-height:1.5}
+label{
+  display:block!important;font-size:11px!important;text-transform:uppercase!important;
+  letter-spacing:.08em!important;color:#a9bdd5!important;margin-bottom:7px!important;margin-top:18px!important;
+}
+input[type=file]{
+  width:100%!important;padding:12px 13px!important;color:var(--text)!important;
+  background:#091727!important;border:1px solid #29405e!important;
+  border-radius:11px!important;font-size:13px!important;outline:none;cursor:pointer;
+}
+input[type=file]::file-selector-button{
+  background:rgba(79,156,255,.15);color:var(--accent);border:0;padding:6px 12px;
+  border-radius:6px;font-weight:600;margin-right:10px;cursor:pointer;
+}
+.hint{font-size:12px!important;color:var(--muted)!important;margin-top:5px!important}
+button[type=submit],.btn{
+  background:linear-gradient(135deg,var(--accent),#6b70ff)!important;color:white!important;
+  border:0!important;border-radius:11px!important;padding:12px 16px!important;
+  font-weight:750!important;box-shadow:0 8px 20px rgba(79,156,255,.2);cursor:pointer;
+  width:100%!important;margin-top:26px!important;font-size:14px!important;
+  transition: all 0.2s ease;
+}
+button[type=submit]:hover{opacity:.95;transform:translateY(-2px);box-shadow:0 6px 16px rgba(8, 119, 238, 0.3);}
+.cache-note{
+  margin-top:14px!important;font-size:12.5px!important;
+  background:rgba(50,213,131,.1)!important;color:#6ee7aa!important;
+  border:1px solid rgba(50,213,131,.25)!important;padding:10px 12px!important;
+  border-radius:10px!important;
+}
+a{color:#78b5ff}
+@media(max-width:640px){
+ .navbar{padding:13px 16px;align-items:flex-start}.navbar>div:last-child{justify-content:flex-end}
+ .wrap{margin:20px 16px 40px!important;padding:24px!important}
+}
 </style>
 </head>
 <body>
+
+<!-- Live Animated Background Elements -->
+<ul class="particles">
+    <li></li>
+    <li></li>
+    <li></li>
+    <li></li>
+    <li></li>
+    <li></li>
+</ul>
+
 <div class="navbar">
   <div>TBB Mail</div>
   <div>
@@ -32,6 +151,7 @@
     </form>
   </div>
 </div>
+
 <div class="wrap">
   <h1>TBB Party — Branch Auto Mail</h1>
   <p class="sub">Report sheet upload karein — system branch code se match karke har branch ko mail draft banayega.</p>
@@ -52,5 +172,6 @@
     <button type="submit">Sheet Padho aur Preview Dikhao</button>
   </form>
 </div>
+
 </body>
 </html>

@@ -5,11 +5,17 @@ services:
   # ---------------------------------------------------------------------
   - type: web
     name: om-suite-main
-    runtime: python
+    # Docker (not the plain "python" runtime) — needed so the GST Query
+    # screen has an actual Chromium browser to drive (see main_app/Dockerfile).
+    # Render still auto-detects $PORT and everything else works exactly
+    # the same as before; this only changes *how* the image is built.
+    # NOTE: dockerfilePath/dockerContext are already relative to the repo
+    # root, so rootDir must NOT also be set to main_app here — combining
+    # both doubles the path (main_app/main_app) and breaks the build.
+    runtime: docker
+    dockerfilePath: ./main_app/Dockerfile
+    dockerContext: ./main_app
     plan: free
-    rootDir: main_app
-    buildCommand: "pip install -r requirements.txt"
-    startCommand: "gunicorn app:app --bind 0.0.0.0:$PORT --workers 2 --threads 4 --timeout 120"
     envVars:
       - key: FLASK_SECRET
         generateValue: true
@@ -64,7 +70,7 @@ services:
       - key: SESSION_LIFETIME_MINUTES
         value: "480"
       - key: SAVE_API_ENABLED
-        value: "false"
+        value: "true"
       - key: SAVE_API_URL
         value: "/manual-cn/modification/{cn_no}"
       - key: SAVE_API_METHOD
