@@ -1,6 +1,6 @@
 const D = {
   apiBase: 'http://127.0.0.1:5000', token: '', username: '', enabled: true, autoSend: false,
-  searchDays: 365, matchLimit: 250, pollSeconds: 5, searchFolders: []
+  searchDays: 365, matchLimit: 250, pollMinutes: 1, notifyOnJob: true, searchFolders: []
 };
 
 let currentSelectedFolders = [];
@@ -87,9 +87,12 @@ async function save() {
     autoSend: document.getElementById('autoSend').checked,
     searchDays: Number(document.getElementById('searchDays').value || 365),
     matchLimit: Number(document.getElementById('matchLimit').value || 250),
+    pollMinutes: Number(document.getElementById('pollMinutes').value || 1),
+    notifyOnJob: document.getElementById('notifyOnJob').checked,
     searchFolders: collectSelectedFolders()
   };
   await messenger.storage.local.set(data);
+  await messenger.runtime.sendMessage({ type: 'reschedule' });
   currentSelectedFolders = data.searchFolders;
   status('Saved. (' + data.searchFolders.length + ' search folder(s) configured)');
 }

@@ -4,14 +4,50 @@ const DEFAULTS = {
   username: "",
   enabled: true,
   autoSend: false,
-  pollSeconds: 5,
+  pollMinutes: 1,          // WebExtension alarms can't reliably fire faster than 1 min, so we poll every N minutes instead of the old (silently-clamped) 5-second setting.
   matchLimit: 250,
   searchDays: 365,
-  searchFolders: []
+  searchFolders: [],
+  notifyOnJob: true        // desktop notification when a match/send job finishes (uses the already-declared "notifications" permission)
+};
+
+// Runtime status the popup reads to show *why* nothing happened, instead of
+// staying blank forever when config is incomplete or the API is unreachable.
+const STATE_DEFAULTS = {
+  lastPollAt: 0,
+  lastOkAt: 0,
+  lastError: "",
+  lastJobCount: 0,
+  lastCycleSummary: "",
+  connected: null // null = never tried, true/false = last known result
 };
 
 async function settings() {
   return { ...DEFAULTS, ...(await messenger.storage.local.get(DEFAULTS)) };
+}
+
+async function getState() {
+  return { ...STATE_DEFAULTS, ...(await messenger.storage.local.get(STATE_DEFAULTS)) };
+}
+
+async function setState(patch) {
+  const cur = await getState();
+  const next = { ...cur, ...patch };
+  await messenger.storage.local.set(next);
+  return next;
+}
+
+async function notify(title, message) {
+  try {
+    const s = await settings();
+    if (!s.notifyOnJob) return;
+    await messenger.notifications.create({
+      type: "basic",
+      title,
+      message,
+      iconUrl: "icon.png"
+    });
+  } catch (_) { /* notifications permission granted but icon/platform issue — never fatal */ }
 }
 
 function norm(v) {
@@ -268,37 +304,78 @@ async function sendJob(job) {
 
 async function processJobs() {
   const s = await settings();
-  if (!s.enabled || !s.token || !s.username) return;
+  const pollAt = Date.now();
+
+  // Previously this silently returned with NO trace anywhere if config was
+  // incomplete — the extension looked "dead" with zero clue why. Now we
+  // record *why* so the popup can tell the user exactly what's missing.
+  if (!s.enabled) {
+    await setState({ lastPollAt: pollAt, connected: null, lastError: "Bridge is disabled in Options.", lastCycleSummary: "" });
+    return;
+  }
+  if (!s.token || !s.username) {
+    const missing = [!s.username && "App Username", !s.token && "Bridge Token"].filter(Boolean).join(" & ");
+    await setState({ lastPollAt: pollAt, connected: false, lastError: `${missing} not set in Options — open Options and fill these in.`, lastCycleSummary: "" });
+    return;
+  }
+
   try {
     const data = await api(`/api/bridge/poll?limit=5`);
-    for (const job of (data.jobs || [])) {
+    const jobs = data.jobs || [];
+    let done = 0, failed = 0;
+    for (const job of jobs) {
       try {
         if (job.job_type === "match") {
           const result = await bestMatch(job.payload || {});
           await report(job.id, result);
+          done++;
+          const conf = result?.profile?.confidence ?? 0;
+          if (conf > 0) {
+            await notify("Auto Bill — Match found", `Confidence ${conf}% · ${(result.profile.to || []).join(", ") || "no recipient"}`);
+          } else {
+            await notify("Auto Bill — No match", `No historical mail matched job #${job.id}.`);
+          }
         } else if (job.job_type === "send") {
           const result = await sendJob(job);
           await report(job.id, result);
+          done++;
+          await notify("Auto Bill — Mail sent", `To: ${(result.to || []).join(", ") || "(unknown)"}`);
         } else {
           await report(job.id, { ignored: true });
         }
       } catch (e) {
+        failed++;
         await reportError(job.id, e);
+        await notify("Auto Bill — Job failed", String(e).slice(0, 180));
       }
     }
+    const summary = jobs.length ? `${done} done, ${failed} failed (of ${jobs.length})` : "No pending jobs.";
+    await setState({ lastPollAt: pollAt, lastOkAt: Date.now(), connected: true, lastError: "", lastJobCount: jobs.length, lastCycleSummary: summary });
   } catch (e) {
     console.warn("Auto Bill bridge poll failed", e);
+    await setState({ lastPollAt: pollAt, connected: false, lastError: String(e), lastCycleSummary: "" });
   }
 }
 
+async function scheduleAlarm() {
+  const s = await settings();
+  // Firefox/Thunderbird clamp non-persistent background alarms to a 1-minute
+  // minimum — the old hardcoded periodInMinutes: 1/12 (5s) was silently
+  // rounded up, so the configured "5 second" poll never actually happened
+  // that fast. We now use a real, user-configurable minutes value.
+  const minutes = Math.max(1, Number(s.pollMinutes) || 1);
+  await messenger.alarms.create("autoBillPoll", { periodInMinutes: minutes });
+}
+
 messenger.runtime.onInstalled.addListener(async () => {
-  await messenger.storage.local.set(DEFAULTS);
-  await messenger.alarms.create("autoBillPoll", { periodInMinutes: 1 / 12 });
+  const existing = await messenger.storage.local.get(Object.keys(DEFAULTS));
+  await messenger.storage.local.set({ ...DEFAULTS, ...existing });
+  await scheduleAlarm();
   processJobs();
 });
 
 messenger.runtime.onStartup.addListener(async () => {
-  await messenger.alarms.create("autoBillPoll", { periodInMinutes: 1 / 12 });
+  await scheduleAlarm();
   processJobs();
 });
 
@@ -306,11 +383,18 @@ messenger.alarms.onAlarm.addListener(alarm => {
   if (alarm.name === "autoBillPoll") processJobs();
 });
 
-// Also allow popup/options to trigger an immediate cycle.
+// Also allow popup/options to trigger an immediate cycle, and to read back
+// the last-known status without hitting the network again.
 messenger.runtime.onMessage.addListener(async message => {
-  if (message?.type === "pollNow") { await processJobs(); return { ok: true }; }
+  if (message?.type === "pollNow") { await processJobs(); return { ok: true, state: await getState() }; }
+  if (message?.type === "getState") { return await getState(); }
+  if (message?.type === "reschedule") { await scheduleAlarm(); return { ok: true }; }
   if (message?.type === "testConnection") {
-    try { return await api("/api/bridge/status"); }
+    try {
+      const r = await api("/api/bridge/status");
+      await setState({ connected: true, lastOkAt: Date.now(), lastError: "" });
+      return r;
+    }
     catch (e) {
       const msg = String(e);
       let hint = "";
@@ -318,7 +402,10 @@ messenger.runtime.onMessage.addListener(async message => {
         hint = " — Web app tak connection nahi bana. Check karein: (1) Flask app chal raha hai kya (python app.py), " +
                "(2) Options mein Web App URL bilkul http://127.0.0.1:5000 hi hai (extra slash/space nahi), " +
                "(3) extension Reload/Load Temporary Add-on dobara karein manifest change ke baad.";
+      } else if (/401|unauthorized/i.test(msg)) {
+        hint = " — Bridge Token ya Username galat hai. Web app ke /bridge page se sahi Token copy karein.";
       }
+      await setState({ connected: false, lastError: msg + hint });
       return { error: msg + hint };
     }
   }

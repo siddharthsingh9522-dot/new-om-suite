@@ -30,3 +30,37 @@ match dhoonda jaye — sirf auto-detected "Sent" folder tak limited nahi hai ab.
 
 The extension uses Thunderbird's WebExtension `messages` and `compose` APIs. Automatic background sending requires a Thunderbird build that supports the relevant send API; the compose send path is used for broad compatibility.
 
+
+## v1.1.0 — Audit fixes & improvements
+Audited against a working sibling extension (friend's GR Mail AI Assistant) and against this
+extension's own Flask backend (`/api/bridge/*` in `app.py`). Changes:
+
+1. **`strict_min_version` lowered from `115.15.0` → `102.0`.** This was the single most likely
+   reason the extension silently "didn't work" while another extension on the same Thunderbird
+   install did: if your Thunderbird build is below 115.15, Thunderbird disables/refuses to load
+   this add-on entirely, with no popup error — it just looks dead. None of the WebExtension APIs
+   this extension uses require 115+, so the floor is now 102 (same baseline the working sibling
+   extension uses).
+2. **Silent no-op fixed.** Previously, if Bridge Token / App Username weren't filled in Options,
+   `processJobs()` returned instantly with zero indication anywhere — popup just showed settings,
+   nothing else. Now every poll cycle records what happened (or why it didn't) to storage, and the
+   popup shows a live status dot (green/red/grey) plus the last error in plain language.
+3. **`notifications` permission was declared but never used.** Now you get a native desktop
+   notification when a match is found, when a mail is sent, or when a job fails — so you don't have
+   to keep the popup open or dig through the Browser Console.
+4. **Dead `pollSeconds` setting removed.** The old code hardcoded a 5-second poll regardless of this
+   setting, and Thunderbird/Firefox clamp background alarms to a 1-minute minimum anyway — so 5s was
+   never actually happening. Replaced with a real, working "Check every N minutes" dropdown in
+   Options (1/2/5/10/30 min), applied immediately via a `reschedule` message on Save.
+5. **"Test Connection" is now smarter.** It distinguishes a network failure (backend not reachable)
+   from a 401 (wrong Token/Username) and gives a specific next step for each, and updates the same
+   status the popup shows.
+6. Added extension icons (was missing, `browser_action.default_icon` previously unset).
+
+## Setup checklist if it's still not polling
+1. Confirm your Thunderbird version: Help → About Thunderbird. Must be 102 or newer.
+2. Flask app running and reachable at the exact URL in Options → Web App URL (no trailing slash).
+3. Options → Bridge Token: copied fresh from the web app's `/bridge` page, and App Username matches
+   your login username exactly (case-insensitive, but no typos/spaces).
+4. Options → Bridge enabled: ON. Auto-send stays OFF until you've verified matches look right.
+5. Click "Test Connection" — read the error text if it's red, it now tells you exactly what's wrong.

@@ -1,1 +1,20 @@
-<!doctype html><html><head><meta charset="utf-8"><style>body{width:300px;font:13px system-ui,sans-serif;padding:16px}button{padding:9px 12px;margin:4px 0;width:100%;border:0;border-radius:7px;background:#1f4e78;color:white}.note{padding:10px;background:#f1f5f9;border-radius:8px;white-space:pre-wrap}</style></head><body><h3>Auto Bill Intelligence</h3><div id="state" class="note">Checking...</div><button id="poll">Sync / Match Now</button><button id="options">Open Options</button><script src="popup.js"></script></body></html>
+<!doctype html><html><head><meta charset="utf-8"><style>
+body{width:320px;font:13px system-ui,sans-serif;padding:16px}
+h3{margin:0 0 10px;display:flex;align-items:center;gap:8px}
+.dot{width:10px;height:10px;border-radius:50%;background:#94a3b8;flex-shrink:0}
+.dot.ok{background:#16a34a}
+.dot.bad{background:#dc2626}
+.dot.off{background:#94a3b8}
+button{padding:9px 12px;margin:4px 0;width:100%;border:0;border-radius:7px;background:#1f4e78;color:white;cursor:pointer}
+.note{padding:10px;background:#f1f5f9;border-radius:8px;white-space:pre-wrap;margin-bottom:6px}
+.err{padding:10px;background:#fef2f2;color:#991b1b;border-radius:8px;white-space:pre-wrap;margin-bottom:6px;display:none}
+.meta{color:#64748b;font-size:11.5px;margin:2px 0 10px}
+</style></head><body>
+<h3><span id="dot" class="dot off"></span>Auto Bill Intelligence</h3>
+<div id="state" class="note">Checking...</div>
+<div id="err" class="err"></div>
+<div id="meta" class="meta"></div>
+<button id="poll">Sync / Match Now</button>
+<button id="options">Open Options</button>
+<script src="popup.js"></script>
+</body></html>
